@@ -150,7 +150,7 @@ logic arp_rpy_fin;
 
 byte rx_state;
 
-byte cnt;
+
 logic[7:0] rx_data_s;
 
 
@@ -174,7 +174,9 @@ logic fifo_drop;
 
 always @(posedge clk50m or negedge phy_rdy) begin
     if(phy_rdy==1'b0)begin
-        cnt <=0;
+        rx_cnt <= 1'b0;
+        tick <= 1'b0;
+        fifo_drop <= 1'b0;
     end else begin
         if(crs_dv)begin
             tick <= tick + 8'd1;
@@ -676,7 +678,7 @@ tx_ct ctct(
     .p_txen(netrmii.txen)
 );
 
-logic [15:0] sendport = 16'h1234;
+
 
 logic [47:0] tar_mac_buf;
 logic [31:0] tar_ip_buf;

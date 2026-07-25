@@ -22,7 +22,7 @@ always_ff@(posedge clk or negedge rst)begin
         ckdiv <= ckdiv + 24'd1;
         if(ckdiv == 24'd0)
             rled[0] <= !rled[0];
-        rled[1] <= rx_data_av;
+        rled[1] <= ready;
         rled[5:2] <= 4'b1111;
     end
 end
