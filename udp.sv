@@ -34,7 +34,7 @@ module udp
     parameter bit [47:0] mac_adr = 48'd0,
     
     parameter int arp_refresh_interval = 50000000*2,
-    parameter int arp_max_life_time = 50000000*10
+    parameter bit [31:0] arp_max_life_time = 50000000*10
 )(
     input clk1m,
     input rst,
@@ -173,12 +173,12 @@ logic fifo_drop;
 
 
 always @(posedge clk50m or negedge phy_rdy) begin
-    if(phy_rdy==1'b0)begin
+    if(phy_rdy==1'b0) begin
         rx_cnt <= 1'b0;
         tick <= 1'b0;
         fifo_drop <= 1'b0;
     end else begin
-        if(crs_dv)begin
+        if(crs_dv) begin
             tick <= tick + 8'd1;
             if(tick == 3)tick <= 0;
         end
@@ -211,10 +211,11 @@ always @(posedge clk50m or negedge phy_rdy) begin
                 if(crs_dv == 1'b0) begin
                     fifo_drop <= 1'b1;
                 end
+
             end
         endcase
 
-        if(crs_dv == 1'b0)begin
+        if(crs_dv == 1'b0) begin
             rx_state<=0;
             rx_data_s <= 8'b00XXXXXX;
         end
@@ -249,7 +250,7 @@ logic [1:0] arp_list;
 
 
 
-int arp_life_time[1:0];
+bit [31:0] arp_life_time[1:0];
 
 logic [47:0] arp_mac_0;
 logic [47:0] arp_mac_1;
@@ -410,7 +411,7 @@ always_ff@(posedge clk50m or negedge phy_rdy)begin
             20:begin
                 //如果fifo满了，就直接拒绝接收 / Reject reception when FIFO is full
                 //head 剩余空间小于4 或者 data 剩余空间小于1600 / head free space < 4 or data free space < 1600
-                if((rx_data_fifo_tail + 127 - rx_data_fifo_head_int) % 128 < 4)
+                if((rx_head_fifo_tail + 127 - rx_head_fifo_head_int) % 128 < 4)
                     ethernet_resolve_status <= 100;
                 if((rx_data_fifo_tail + 8191 - rx_data_fifo_head_int) % 8192 < 1600)
                     ethernet_resolve_status <= 100;

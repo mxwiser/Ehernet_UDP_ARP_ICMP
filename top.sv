@@ -56,7 +56,7 @@ udp #(
     .mac_adr({8'h06,8'h00,8'hAA,8'hBB,8'h0C,8'hDD}),
 
     .arp_refresh_interval(50000000*15), // 15 seconds    
-    .arp_max_life_time(50000000*30) // 30 seconds
+    .arp_max_life_time(50000000*3000) // 30 seconds
 )udp_inst(
     .clk1m(clk1m),
     .rst(rst),
