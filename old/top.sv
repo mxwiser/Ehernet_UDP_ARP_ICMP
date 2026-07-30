@@ -87,7 +87,7 @@ udp #(
 
 always_comb begin
     tx_data <= rx_data;
-    tx_data_av <= rx_data_av;
+    tx_data_av <= rx_data_av ;
 end
 
 byte tx_state;
