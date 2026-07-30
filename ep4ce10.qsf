@@ -38,7 +38,7 @@
 
 set_global_assignment -name FAMILY "Cyclone IV E"
 set_global_assignment -name DEVICE EP4CE10E22C8
-set_global_assignment -name TOP_LEVEL_ENTITY top
+set_global_assignment -name TOP_LEVEL_ENTITY udp_loop
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 18.1.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "11:33:31  JULY 06, 2026"
 set_global_assignment -name LAST_QUARTUS_VERSION "25.1std.0 Lite Edition"
@@ -48,9 +48,6 @@ set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
 set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
 set_global_assignment -name NOMINAL_CORE_SUPPLY_VOLTAGE 1.2V
 set_global_assignment -name EDA_SIMULATION_TOOL "QuestaSim (Verilog)"
-set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
-set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
-set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_location_assignment PIN_141 -to led[0]
@@ -62,6 +59,38 @@ set_location_assignment PIN_3 -to phyrst
 set_location_assignment PIN_1 -to led[5]
 set_location_assignment PIN_2 -to led[4]
 set_global_assignment -name EDA_OUTPUT_DATA_FORMAT "VERILOG HDL" -section_id eda_simulation
+set_location_assignment PIN_38 -to rst
+set_global_assignment -name VERILOG_INPUT_VERSION SYSTEMVERILOG_2005
+set_global_assignment -name VERILOG_SHOW_LMF_MAPPING_MESSAGES OFF
+set_global_assignment -name ENABLE_SIGNALTAP OFF
+set_global_assignment -name USE_SIGNALTAP_FILE stp1.stp
+set_global_assignment -name EDA_TIME_SCALE "1 ps" -section_id eda_simulation
+set_location_assignment PIN_7 -to netrmii.txen
+set_location_assignment PIN_10 -to netrmii.txd[0]
+set_location_assignment PIN_34 -to netrmii.txd[1]
+set_location_assignment PIN_33 -to netrmii.rxd[0]
+set_location_assignment PIN_32 -to netrmii.rxd[1]
+set_location_assignment PIN_30 -to netrmii.mdio
+set_location_assignment PIN_28 -to netrmii.mdc
+set_location_assignment PIN_25 -to netrmii.clk50m
+set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_timing
+set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_symbol
+set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_signal_integrity
+set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_boundary_scan
+set_global_assignment -name EDA_NETLIST_WRITER_OUTPUT_DIR simulation/modelsim -section_id eda_simulation
+set_location_assignment PIN_31 -to netrmii.crs_dv
+set_global_assignment -name TIMING_ANALYZER_MULTICORNER_ANALYSIS ON
+set_global_assignment -name NUM_PARALLEL_PROCESSORS 6
+set_global_assignment -name VERILOG_FILE eth/udp_gmii_tx.v
+set_global_assignment -name VERILOG_FILE eth/udp_gmii_rx.v
+set_global_assignment -name VERILOG_FILE eth/rmii2gmii.v
+set_global_assignment -name VERILOG_FILE eth/eth_rmii.v
+set_global_assignment -name VERILOG_FILE eth/eth_arp_gmii.v
+set_global_assignment -name VERILOG_FILE eth/CRC32_D8.v
+set_global_assignment -name VERILOG_FILE udp_loop.v
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to clk
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to led[5]
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to led[4]
@@ -71,26 +100,7 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to led[1]
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to led[0]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to led
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to phyrst
-set_location_assignment PIN_38 -to rst
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to rst
-set_global_assignment -name VERILOG_INPUT_VERSION SYSTEMVERILOG_2005
-set_global_assignment -name VERILOG_SHOW_LMF_MAPPING_MESSAGES OFF
-set_global_assignment -name ENABLE_SIGNALTAP OFF
-set_global_assignment -name USE_SIGNALTAP_FILE stp1.stp
-set_global_assignment -name EDA_TIME_SCALE "1 ps" -section_id eda_simulation
-set_global_assignment -name SYSTEMVERILOG_FILE udp.sv
-set_global_assignment -name SDC_FILE ep4ce10.out.sdc
-set_global_assignment -name SYSTEMVERILOG_FILE top.sv
-set_global_assignment -name QIP_FILE mpll.qip
-set_global_assignment -name SIGNALTAP_FILE stp1.stp
-set_location_assignment PIN_7 -to netrmii.txen
-set_location_assignment PIN_10 -to netrmii.txd[0]
-set_location_assignment PIN_34 -to netrmii.txd[1]
-set_location_assignment PIN_33 -to netrmii.rxd[0]
-set_location_assignment PIN_32 -to netrmii.rxd[1]
-set_location_assignment PIN_30 -to netrmii.mdio
-set_location_assignment PIN_28 -to netrmii.mdc
-set_location_assignment PIN_25 -to netrmii.clk50m
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to netrmii.txen
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to netrmii.txd[0]
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to netrmii.txd[1]
@@ -99,13 +109,5 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to netrmii.rxd[1]
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to netrmii.mdio
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to netrmii.clk50m
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to netrmii.mdc
-set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_timing
-set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_symbol
-set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_signal_integrity
-set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_boundary_scan
-set_global_assignment -name EDA_NETLIST_WRITER_OUTPUT_DIR simulation/modelsim -section_id eda_simulation
-set_location_assignment PIN_31 -to netrmii.crs_dv
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to netrmii.crs_dv
-set_global_assignment -name TIMING_ANALYZER_MULTICORNER_ANALYSIS ON
-set_global_assignment -name NUM_PARALLEL_PROCESSORS 6
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
