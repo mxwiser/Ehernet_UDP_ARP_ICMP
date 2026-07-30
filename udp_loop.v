@@ -51,13 +51,13 @@ eth_rmii								u1_eth_rmii (
 	.udp_txbusy							( udp_txbusy	)
 );
 
-fifo_2048_d8							u2_fifo_2048_d8 (
-	.aclr								( !sys_rst_n	),
-	.clock								( rmii_clk		),
-	.data								( udp_rxdata	),
-	.rdreq								( udp_txreq		),
-	.wrreq								( udp_rxdv		),
-	.q									( udp_txdata	)
+
+fifo u2_fifo(
+	.clock ( rmii_clk ),
+	.data ( udp_rxdata ),
+	.rdreq ( udp_txreq ),
+	.wrreq ( udp_rxdv ),
+	.q ( udp_txdata )
 );
 
 always @ ( posedge rmii_clk or negedge sys_rst_n ) begin
