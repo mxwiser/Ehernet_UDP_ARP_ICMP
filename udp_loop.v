@@ -18,6 +18,11 @@ module udp_loop (
 	output	wire						rmii_rst
 );
 
+
+eth_mac_mii u0_eth_mac_mii(
+	
+);
+
 udp_complete u1_udp_complete(
 	.clk(rmii_clk),
 	.rst(sys_rst_n)
