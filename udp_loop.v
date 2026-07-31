@@ -19,6 +19,44 @@ module udp_loop (
 );
 wire rst;
 assign rst = !sys_rst_n;
+
+
+
+wire         mac_mii_rxc;
+wire         mac_mii_rxdv;
+wire         mac_mii_rxer;
+wire  [3:0]  mac_mii_rxd;
+wire         mac_mii_txc;
+wire         mac_mii_txen;
+wire         mac_mii_txer;
+wire  [3:0]  mac_mii_txd;
+
+
+rmii_phy_if u_0_rmii_phy_if(
+	.rstn_async (sys_rst_n),
+	.mode_speed (1'b1),
+    // RMII interface connect to PHY
+    .phy_rmii_ref_clk (rmii_clk),  // 50MHz required
+    .phy_rmii_crsdv   (rmii_crsdv),
+    .phy_rmii_rxer    (1'b0),     // rxer is optional for RMII
+    .phy_rmii_rxd     (rmii_rxdata),
+    .phy_rmii_txen    (rmii_txen),
+    .phy_rmii_txd     (rmii_txdata),
+
+	//MII phy
+    .mac_mii_rxc    (mac_mii_rxc),
+    .mac_mii_rxdv   (mac_mii_rxdv),
+    .mac_mii_rxer   (mac_mii_rxer),
+    .mac_mii_rxd    (mac_mii_rxd),
+    .mac_mii_txc    (mac_mii_txc),
+    .mac_mii_txen   (mac_mii_txen),
+    .mac_mii_txer   (mac_mii_txer),
+    .mac_mii_txd    (mac_mii_txd)
+
+);
+
+
+
 eth_mac_mii u0_eth_mac_mii(
 	.rst(rst),
 
@@ -27,22 +65,7 @@ eth_mac_mii u0_eth_mac_mii(
     // output wire        tx_clk,
     // output wire        tx_rst,
 
-    /*
-     * AXI input
-     */
-    input  wire [7:0]  tx_axis_tdata,
-    input  wire        tx_axis_tvalid,
-    output wire        tx_axis_tready,
-    input  wire        tx_axis_tlast,
-    input  wire        tx_axis_tuser,
 
-    /*
-     * AXI output
-     */
-    output wire [7:0]  rx_axis_tdata,
-    output wire        rx_axis_tvalid,
-    output wire        rx_axis_tlast,
-    output wire        rx_axis_tuser,
 
     /*
      * MII interface
@@ -56,14 +79,7 @@ eth_mac_mii u0_eth_mac_mii(
     output wire        mii_tx_en,
     output wire        mii_tx_er,
 
-    /*
-     * Status
-     */
-    output wire        tx_start_packet,
-    output wire        tx_error_underflow,
-    output wire        rx_start_packet,
-    output wire        rx_error_bad_frame,
-    output wire        rx_error_bad_fcs,
+
 
     /*
      * Configuration
@@ -73,7 +89,7 @@ eth_mac_mii u0_eth_mac_mii(
     input  wire        cfg_rx_enable
 );
 
-udp_complete u1_udp_complete(
+udp_complete u2_udp_complete(
 	.clk(rmii_clk),
 	.rst(rst)
 );
