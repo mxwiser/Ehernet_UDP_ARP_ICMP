@@ -8,6 +8,9 @@
 // history:		0.1 don't support fragment
 
 module udp_gmii_rx (
+
+	output reg [31:0] test_count,
+
 	input	wire							sys_clk,
 	input	wire							sys_rst_n,
 	input	wire							gmii_rxdv,
@@ -83,162 +86,174 @@ module udp_gmii_rx (
 	reg		[15:0]							data_len;
 	reg										udp_continue;					// flags[0] is assigned to it when state == CRC. indicates that next frame is continuous
 
+
+
+
+
+
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		state <= IDLE;
-	end else case ( state )
-		IDLE: begin
-			if ( cnt_pre >= 3'd6 && gmii_rxdv && gmii_rxdata == 8'h55 ) begin
-				state <= SFD;
-			end else begin
-				state <= IDLE;
+		test_count <= 0;
+	end else begin
+		case ( state )
+			IDLE: begin
+				if ( cnt_pre >= 3'd6 && gmii_rxdv && gmii_rxdata == 8'h55 ) begin
+					state <= SFD;
+				end else begin
+					state <= IDLE;
+				end
 			end
-		end
-		SFD: begin
-			if ( gmii_rxdv && gmii_rxdata == 8'hD5 ) begin					// SFD == 'hD5
-				state <= MAC_ADDR;
-			end else if ( gmii_rxdv ) begin
-				state <= IDLE;
-			end else begin
-				state <= SFD;
+			SFD: begin
+				if ( gmii_rxdv && gmii_rxdata == 8'hD5 ) begin					// SFD == 'hD5
+					state <= MAC_ADDR;
+				end else if ( gmii_rxdv ) begin
+					state <= IDLE;
+				end else begin
+					state <= SFD;
+				end
 			end
-		end
-		MAC_ADDR: begin
-			if ( cnt_mac_addr >= 4'd11 && gmii_rxdv ) begin
-				if ( des_mac == BOARD_MAC_ADDR ) begin
+			MAC_ADDR: begin
+				if ( cnt_mac_addr >= 4'd11 && gmii_rxdv ) begin
+					if ( des_mac == BOARD_MAC_ADDR ) begin
+						state <= TYPE;
+					end else begin
+						state <= IDLE;
+					end
+				end else begin
+					state <= MAC_ADDR;
+				end
+			end
+			TYPE: begin
+				if ( cnt_type && gmii_rxdv ) begin
+					if ( {gmii_rxdata_d, gmii_rxdata} == 16'h0800 ) begin		// IPv4 only, TYPE = 'h0800
+						state <= IP_TYPE;
+					end else begin
+						state <= IDLE;
+					end
+				end else begin
 					state <= TYPE;
-				end else begin
-					state <= IDLE;
 				end
-			end else begin
-				state <= MAC_ADDR;
 			end
-		end
-		TYPE: begin
-			if ( cnt_type && gmii_rxdv ) begin
-				if ( {gmii_rxdata_d, gmii_rxdata} == 16'h0800 ) begin		// IPv4 only, TYPE = 'h0800
+			IP_TYPE: begin
+				if ( cnt_ip_type && gmii_rxdv ) begin
+					if ( gmii_rxdata_d[7:4] == 'h4 ) begin						// IPv4 only
+						state <= IP_LEN;
+					end else begin
+						state <= IDLE;
+					end
+				end else begin
 					state <= IP_TYPE;
-				end else begin
-					state <= IDLE;
 				end
-			end else begin
-				state <= TYPE;
 			end
-		end
-		IP_TYPE: begin
-			if ( cnt_ip_type && gmii_rxdv ) begin
-				if ( gmii_rxdata_d[7:4] == 'h4 ) begin						// IPv4 only
+			IP_LEN: begin
+				if ( cnt_ip_len && gmii_rxdv ) begin
+					state <= IP_ID;
+				end else begin
 					state <= IP_LEN;
-				end else begin
-					state <= IDLE;
 				end
-			end else begin
-				state <= IP_TYPE;
 			end
-		end
-		IP_LEN: begin
-			if ( cnt_ip_len && gmii_rxdv ) begin
-				state <= IP_ID;
-			end else begin
-				state <= IP_LEN;
+			IP_ID: begin
+				if ( cnt_ip_id && gmii_rxdv ) begin
+					state <= IP_SPLIT;
+				end else begin
+					state <= IP_ID;
+				end
 			end
-		end
-		IP_ID: begin
-			if ( cnt_ip_id && gmii_rxdv ) begin
-				state <= IP_SPLIT;
-			end else begin
-				state <= IP_ID;
+			IP_SPLIT: begin
+				if ( cnt_ip_split && gmii_rxdv ) begin
+					state <= IP_TTL;
+				end else begin
+					state <= IP_SPLIT;
+				end
 			end
-		end
-		IP_SPLIT: begin
-			if ( cnt_ip_split && gmii_rxdv ) begin
-				state <= IP_TTL;
-			end else begin
-				state <= IP_SPLIT;
+			IP_TTL: begin
+				if ( gmii_rxdv ) begin
+					state <= IP_PROTOCOL;
+				end else begin
+					state <= IP_TTL;
+				end
 			end
-		end
-		IP_TTL: begin
-			if ( gmii_rxdv ) begin
-				state <= IP_PROTOCOL;
-			end else begin
-				state <= IP_TTL;
+			IP_PROTOCOL: begin
+				if ( gmii_rxdv && gmii_rxdata == 8'd17 ) begin					// UDP only
+					state <= IP_CHECK;
+				end else if ( gmii_rxdv ) begin
+					state <= IDLE;
+				end else begin
+					state <= IP_PROTOCOL;
+				end
 			end
-		end
-		IP_PROTOCOL: begin
-			if ( gmii_rxdv && gmii_rxdata == 8'd17 ) begin					// UDP only
-				state <= IP_CHECK;
-			end else if ( gmii_rxdv ) begin
-				state <= IDLE;
-			end else begin
-				state <= IP_PROTOCOL;
+			IP_CHECK: begin
+				if ( cnt_ip_check && gmii_rxdv ) begin
+					state <= IP_ADDR;
+				end else begin
+					state <= IP_CHECK;
+				end
 			end
-		end
-		IP_CHECK: begin
-			if ( cnt_ip_check && gmii_rxdv ) begin
-				state <= IP_ADDR;
-			end else begin
-				state <= IP_CHECK;
+			IP_ADDR: begin
+				if ( cnt_ip_addr >= 3'd7 && gmii_rxdv && udp_continue && cnt_network < ip_header_len - 1 ) begin
+					state <= IP_FILL;
+				end else if ( cnt_ip_addr >= 3'd7 && gmii_rxdv && udp_continue ) begin
+					state <= DATA;
+				end else if ( cnt_ip_addr >= 3'd7 && gmii_rxdv ) begin
+					state <= UDP_PORT;
+				end else begin
+					state <= IP_ADDR;
+				end
 			end
-		end
-		IP_ADDR: begin
-			if ( cnt_ip_addr >= 3'd7 && gmii_rxdv && udp_continue && cnt_network < ip_header_len - 1 ) begin
-				state <= IP_FILL;
-			end else if ( cnt_ip_addr >= 3'd7 && gmii_rxdv && udp_continue ) begin
-				state <= DATA;
-			end else if ( cnt_ip_addr >= 3'd7 && gmii_rxdv ) begin
-				state <= UDP_PORT;
-			end else begin
-				state <= IP_ADDR;
+			IP_FILL: begin
+				if ( cnt_network >= ip_header_len - 1 && gmii_rxdv && udp_continue ) begin
+					state <= DATA;
+				end else if ( cnt_network >= ip_header_len - 1 && gmii_rxdv ) begin
+					state <= UDP_PORT;
+				end else begin
+					state <= IP_ADDR;
+				end
 			end
-		end
-		IP_FILL: begin
-			if ( cnt_network >= ip_header_len - 1 && gmii_rxdv && udp_continue ) begin
-				state <= DATA;
-			end else if ( cnt_network >= ip_header_len - 1 && gmii_rxdv ) begin
-				state <= UDP_PORT;
-			end else begin
-				state <= IP_ADDR;
+			UDP_PORT: begin
+				if ( des_ip != BOARD_IP_ADDR ) begin
+					state <= IDLE;
+				end else if ( cnt_udp_port >= 2'd3 && gmii_rxdv ) begin
+					state <= UDP_LEN;
+				end else begin
+					state <= UDP_PORT;
+				end
 			end
-		end
-		UDP_PORT: begin
-			if ( des_ip != BOARD_IP_ADDR ) begin
-				state <= IDLE;
-			end else if ( cnt_udp_port >= 2'd3 && gmii_rxdv ) begin
-				state <= UDP_LEN;
-			end else begin
-				state <= UDP_PORT;
+			UDP_LEN: begin
+				if ( cnt_udp_len && gmii_rxdv ) begin
+					state <= UDP_CHECK;
+				end else begin
+					state <= UDP_LEN;
+				end
 			end
-		end
-		UDP_LEN: begin
-			if ( cnt_udp_len && gmii_rxdv ) begin
-				state <= UDP_CHECK;
-			end else begin
-				state <= UDP_LEN;
+			UDP_CHECK: begin
+				if ( cnt_udp_check && gmii_rxdv ) begin
+					state <= DATA;
+				end else begin
+					state <= UDP_CHECK;
+				end
 			end
-		end
-		UDP_CHECK: begin
-			if ( cnt_udp_check && gmii_rxdv ) begin
-				state <= DATA;
-			end else begin
-				state <= UDP_CHECK;
+			DATA: begin
+				//STL看了计数器，确实是卡这里状态机导致死机
+				if ( cnt_data >= data_len - 16'd1 && gmii_rxdv && cnt_network >= 'd45 ) begin
+					state <= CRC;
+					test_count <= test_count +1'b1;
+				end else begin
+					state <= DATA;
+				end
 			end
-		end
-		DATA: begin
-			if ( cnt_data >= data_len - 16'd1 && gmii_rxdv && cnt_network >= 'd45 ) begin
-				state <= CRC;
-			end else begin
-				state <= DATA;
+			CRC: begin
+				if ( cnt_crc >= 2'd3 && gmii_rxdv ) begin
+					state <= IDLE;
+				end else begin
+					state <= CRC;
+				end
 			end
-		end
-		CRC: begin
-			if ( cnt_crc >= 2'd3 && gmii_rxdv ) begin
-				state <= IDLE;
-			end else begin
-				state <= CRC;
-			end
-		end
-		default: state <= IDLE;
-	endcase
+			default: state <= IDLE;
+		endcase
+
+
+	end
 end
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
