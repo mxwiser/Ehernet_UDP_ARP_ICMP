@@ -94,6 +94,11 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to rmii_rxdata[0]
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to rmii_rxdata[1]
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to rmii_rst
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to rmii_clk
+set_global_assignment -name VERILOG_FILE ETH/axis_gmii_tx.v
+set_global_assignment -name VERILOG_FILE ETH/axis_gmii_rx.v
+set_global_assignment -name VERILOG_FILE ETH/ssio_sdr_in.v
+set_global_assignment -name VERILOG_FILE ETH/mii_phy_if.v
+set_global_assignment -name VERILOG_FILE ETH/eth_mac_1g.v
 set_global_assignment -name VERILOG_FILE ETH/axis_fifo.v
 set_global_assignment -name VERILOG_FILE ETH/udp_checksum_gen.v
 set_global_assignment -name VERILOG_FILE ETH/udp_ip_tx.v
