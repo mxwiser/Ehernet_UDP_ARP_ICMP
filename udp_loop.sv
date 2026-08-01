@@ -50,14 +50,18 @@ eth_rmii								u1_eth_rmii (
 	.udp_txreq							( udp_txreq		),
 	.udp_txbusy							( udp_txbusy	)
 );
-fifo fifo_inst (
+fifo #(
+    .DATA_WIDTH(8),
+    .DEPTH (4096)
+) fifo_inst (
 	.clock ( rmii_clk ),
-	.data ( udp_rxdata ),
+	.rstn  (rstn),
+	.data  ( udp_rxdata ),
 	.rdreq ( udp_txreq ),
 	.wrreq ( udp_rxdv ),
 	.empty ( empty_sig ),
-	.full ( full_sig ),
-	.q ( udp_txdata )
+	.full  ( full_sig ),
+	.q     ( udp_txdata )
 );
 
 
