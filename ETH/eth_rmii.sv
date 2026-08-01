@@ -50,6 +50,9 @@ module eth_rmii(
 	wire	[15:0]						pc_port;
 	wire	[15:0]						board_port;
 
+
+
+
 rmii2gmii								u1_rmii2gmii (
 	.sys_rst_n							( sys_rst_n			),
 	.rmii_clk							( rmii_clk			),

@@ -10,9 +10,9 @@
 module udp_loop (
 	input	wire						sys_rst_n,
 	
-	input	wire						   rmii_clk,
-	input	wire					   	rmii_rxdv,
-	input	wire	[1:0]				   rmii_rxdata,
+	input	wire						rmii_clk,
+	input	wire						rmii_rxdv,
+	input	wire	[1:0]				rmii_rxdata,
 	output	wire						rmii_txen,
 	output	wire	[1:0]				rmii_txdata,
 	output	wire						rmii_rst

@@ -1,0 +1,15 @@
+`include "axis.svh"
+
+module rmii2axis(
+    input   wire            rstn,
+    input	wire			rmii_clk,						
+	input	wire			rmii_crs_dv,
+	input	wire	[1:0]	rmii_rxdata,
+	output	reg				rmii_txen,
+	output	wire	[1:0]	rmii_txdata,
+	output	wire			rmii_rst,
+    axis.master             m_rmii_axis_net
+);
+
+
+endmodule
