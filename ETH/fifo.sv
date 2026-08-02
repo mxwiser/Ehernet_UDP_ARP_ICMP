@@ -52,7 +52,7 @@ begin
     // read port
     if(rdreq && !empty)
     begin
-        qd <= mem[rd_ptr];
+        qd <= mem[rd_ptr+1'b1];
     end
 
 end
@@ -71,7 +71,7 @@ begin
 
     if(!rstn)
     begin
-        wr_ptr <= 0;
+        wr_ptr <= 1;
         rd_ptr <= 0;
     end else begin
 

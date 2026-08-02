@@ -9,14 +9,30 @@
 
 module udp_loop (
 	input	wire						sys_rst_n,
-	
-	input	wire						   rmii_clk,
+	output  logic	[1:0]				led,					
+	input	wire						rmii_clk,
 	input	wire					   	rmii_rxdv,
-	input	wire	[1:0]				   rmii_rxdata,
+	input	wire	[1:0]				rmii_rxdata,
 	output	wire						rmii_txen,
 	output	wire	[1:0]				rmii_txdata,
 	output	wire						rmii_rst
 );
+
+logic[23:0] ckdiv;
+logic[1:0]  rled;
+assign led = rled;
+
+always_ff@(posedge rmii_clk or negedge sys_rst_n)begin
+    if(sys_rst_n == 1'b0)begin
+        rled <= 5'b00001;
+        ckdiv <= 24'd0;
+    end else begin
+        ckdiv <= ckdiv + 24'd1;
+        if(ckdiv == 24'd0)
+            rled <= !rled;
+    end
+end
+
 
 	wire								udp_rxstart;
 	wire								udp_rxend;
