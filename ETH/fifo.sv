@@ -49,16 +49,13 @@ begin
     end
 
 
-    // read port
-    if(rdreq && !empty)
-    begin
-        qd <= mem[rd_ptr+1'b1];
-    end
+ 
+    qd <= mem[rd_ptr];
 
 end
 
 always_comb begin 
-    q = rdreq ? qd : 0;
+    q = (rdreq && !empty) ? qd : 0;
 end
 
 
@@ -71,19 +68,19 @@ begin
 
     if(!rstn)
     begin
-        wr_ptr <= 1;
+        wr_ptr <= 0;
         rd_ptr <= 0;
     end else begin
 
         if(wrreq && !full)
         begin
-            wr_ptr <= wr_ptr + 1'b1;
+            wr_ptr <= (wr_ptr + 1'b1)%DEPTH;
         end
 
 
         if(rdreq && !empty)
         begin
-            rd_ptr <= rd_ptr + 1'b1;
+            rd_ptr <= (rd_ptr + 1'b1)%DEPTH;
         end
 
     end
@@ -97,7 +94,7 @@ end
 //--------------------------------------------------
 wire [ADDR_WIDTH:0] count;
 assign count = (rd_ptr+DEPTH -wr_ptr)%DEPTH;
-assign empty = (wr_ptr == rd_ptr)||(count==(DEPTH-1));
+assign empty = (wr_ptr == rd_ptr);
 
 
 assign full = (count==1);
