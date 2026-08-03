@@ -51,33 +51,33 @@ module eth_rmii(
 	wire	[15:0]						board_port;
 
 
-// rmii2axis  u_rmii2axis(
-// 	.rstn							    ( sys_rst_n			),
-// 	.rmii_clk							( rmii_clk			),
-// 	.rmii_crs_dv						( rmii_rxdv			),
-// 	.rmii_rxdata						( rmii_rxdata		),
-// 	.rmii_txen							( rmii_txen			),
-// 	.rmii_txdata						( rmii_txdata		),
-// 	.rmii_rst							( rmii_rst			)
-// );
-
-
-
-rmii2gmii								u1_rmii2gmii (
-	.sys_rst_n							( sys_rst_n			),
+rmii_axis  u_rmii_axis(
+	.rstn							    ( sys_rst_n			),
 	.rmii_clk							( rmii_clk			),
-	.rmii_rxdv							( rmii_rxdv			),
+	.rmii_crs_dv						( rmii_rxdv			),
 	.rmii_rxdata						( rmii_rxdata		),
 	.rmii_txen							( rmii_txen			),
 	.rmii_txdata						( rmii_txdata		),
-	.rmii_rst							( rmii_rst			),
-	.gmii_clk							( gmii_clk			),
-	.gmii_rxdv							( gmii_rxdv			),
-	.gmii_rxdata						( gmii_rxdata		),
-	.gmii_txen							( gmii_txen			),
-	.gmii_txdata						( gmii_txdata		),
-	.gmii_txbusy						( gmii_txbusy		)
+	.rmii_rst							( rmii_rst			)
 );
+
+
+
+// rmii2gmii								u1_rmii2gmii (
+// 	.sys_rst_n							( sys_rst_n			),
+// 	.rmii_clk							( rmii_clk			),
+// 	.rmii_rxdv							( rmii_rxdv			),
+// 	.rmii_rxdata						( rmii_rxdata		),
+// 	.rmii_txen							( rmii_txen			),
+// 	.rmii_txdata						( rmii_txdata		),
+// 	.rmii_rst							( rmii_rst			),
+// 	.gmii_clk							( gmii_clk			),
+// 	.gmii_rxdv							( gmii_rxdv			),
+// 	.gmii_rxdata						( gmii_rxdata		),
+// 	.gmii_txen							( gmii_txen			),
+// 	.gmii_txdata						( gmii_txdata		),
+// 	.gmii_txbusy						( gmii_txbusy		)
+// );
 
 eth_arp_gmii							u2_eth_arp_gmii (
 	.sys_clk							( gmii_clk			),

@@ -21,8 +21,10 @@ localparam		IDLE					= 18'h0_0001,
 logic       rx_dv;
 logic [7:0] rx_state;
 logic [7:0] rx_tick;
+logic [1:0] rxd;
 logic nibble_shift;
 assign m_rmii_rx_axis_net.tlast = rx_dv;
+assign rxd = rmii_rxdata;
 always_comb begin
     rx_dv = rmii_crs_dv || nibble_shift;
 end
@@ -44,9 +46,14 @@ always_ff @(posedge rmii_clk or negedge rstn) begin
     
     case (rx_state)
         IDLE:begin
-            if(rx_dv)
+            if(rx_dv&&(rxd==2'b01))
               rx_state = PREAMBLE;
-        end            
+        end 
+
+        PREAMBLE: begin
+
+        end
+
     
     endcase
         
