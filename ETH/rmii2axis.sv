@@ -8,8 +8,8 @@ module rmii2axis(
 	output	reg			    rmii_txen,
 	output	wire	[1:0]	rmii_txdata,
 	output	wire			rmii_rst,
-    axis.master             m_rmii_rx_axis_net,
-    axis.slave              s_rmii_tx_axis_net
+    axis.master             m_rmii_rx_axis_net, //tlast :rx_dv
+    axis.slave              s_rmii_tx_axis_net  //tlast :tx_en
 );
 
 localparam		IDLE					= 18'h0_0001,
@@ -18,22 +18,50 @@ localparam		IDLE					= 18'h0_0001,
                 DATA				    = 18'h0_0004,					
                 CRS_CHECK			    = 18'h0_0005;				
 
-wire      rx_dv;
-reg [7:0] state;
+logic       rx_dv;
+logic [7:0] rx_state;
+logic [7:0] rx_tick;
+logic nibble_shift;
 assign m_rmii_rx_axis_net.tlast = rx_dv;
+always_comb begin
+    rx_dv = rmii_crs_dv || nibble_shift;
+end
+
 
 //rx
 always_ff @(posedge rmii_clk or negedge rstn) begin
-    if(rstn==0)begin
-        m_rmii_rx_axis_net.tdata  =  'd0;
-        m_rmii_rx_axis_net.tuser  =  'd0;
-        m_rmii_rx_axis_net.tvalid = 'd0;
-        rx_dv = 'd0;
-        state = 'd0;
+    if(!rstn)begin
+        m_rmii_rx_axis_net.tdata  <=  'd0;
+        m_rmii_rx_axis_net.tuser  <=  'd0;
+        m_rmii_rx_axis_net.tvalid <= 'd0;
+        rx_dv    <= 'd0;
+        rx_state <= 'd0;
+        rx_tick  <= 'd0;
+        nibble_shift <= 'd0;
+    end else begin
+
+
+    
+    case (rx_state)
+        IDLE:begin
+            if(rx_dv)
+              rx_state = PREAMBLE;
+        end            
+    
+    endcase
+        
+    end
+end
+
+
+
+//tx
+always_ff @(posedge rmii_clk or negedge rstn) begin
+    if(!rstn)begin
+        s_rmii_tx_axis_net.tready  =  'd0;
     end else begin
 
     end
 end
-
 
 endmodule
