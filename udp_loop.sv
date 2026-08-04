@@ -1,15 +1,10 @@
-// author:		Benjamin SMith
-// create time:	2023/03/22 11:07
-// edit time:	2023/03/22 16:21
-// platform:	Cyclone ep4ce10f17i7, 野火 board
-// module:		udp_loop
-// function:	UDP loop, transform information back to server
-// version:		1.0
-// history:	
+`include "axis.svh"
 
+// udp_loop: EP4CE10 + LAN8720A UDP 回环 (AXIS 版本)
+// PC 发来的 UDP 数据经 eth_axis 解析后存入 FIFO, 回环发回 PC
 module udp_loop (
 	input	wire						sys_rst_n,
-	output  logic	[1:0]				led,					
+	output  logic	[1:0]				led,
 	input	wire						rmii_clk,
 	input	wire					   	rmii_rxdv,
 	input	wire	[1:0]				rmii_rxdata,
@@ -24,7 +19,7 @@ assign led = rled;
 
 always_ff@(posedge rmii_clk or negedge sys_rst_n)begin
     if(sys_rst_n == 1'b0)begin
-        rled <= 5'b00001;
+        rled <= 2'b01;
         ckdiv <= 24'd0;
     end else begin
         ckdiv <= ckdiv + 24'd1;
@@ -33,70 +28,81 @@ always_ff@(posedge rmii_clk or negedge sys_rst_n)begin
     end
 end
 
+	// UDP 应用层 AXIS
+	wire [7:0]						udp_rx_tdata;
+	wire							udp_rx_tvalid;
+	wire							udp_rx_tlast;
+	wire	[15:0]					udp_rx_amount;
+	wire	[7:0]					udp_tx_tdata;
+	wire							udp_tx_tvalid;
+	wire							udp_tx_tlast;
+	wire							udp_tx_tready;
+	wire	[15:0]					udp_tx_amount;
 
-	wire								udp_rxstart;
-	wire								udp_rxend;
-	wire								udp_rxdv;
-	wire	[7:0]						udp_rxdata;
-	wire	[15:0]						udp_rxamount;
-	wire	[15:0]						udp_rxnum;
-	reg									udp_txstart;
-	reg		[15:0]						udp_txamount;
-	wire	[7:0]						udp_txdata;
-	wire								udp_txreq;
-	wire								udp_txbusy;
+	axis	m_udp_rx();
+	axis	s_udp_tx();
 
-eth_rmii								u1_eth_rmii (
-	.sys_rst_n							( sys_rst_n		),
-	.rmii_clk							( rmii_clk		),
-	.rmii_rxdv							( rmii_rxdv		),
-	.rmii_rxdata						( rmii_rxdata	),
-	.rmii_txen							( rmii_txen		),
-	.rmii_txdata						( rmii_txdata	),
-	.rmii_rst							( rmii_rst		),
-	.udp_rxstart						( udp_rxstart	),
-	.udp_rxend							( udp_rxend		),
-	.udp_rxdv							( udp_rxdv		),
-	.udp_rxdata							( udp_rxdata	),
-	.udp_rxamount						( udp_rxamount	),
-	.udp_rxnum							( udp_rxnum		),
-	.udp_txstart						( udp_txstart	),
-	.udp_txamount						( udp_txamount	),
-	.udp_txdata							( udp_txdata	),
-	.udp_txreq							( udp_txreq		),
-	.udp_txbusy							( udp_txbusy	)
+eth_axis							u1_eth_axis (
+	.sys_rst_n						( sys_rst_n		),
+	.rmii_clk						( rmii_clk		),
+	.rmii_rxdv						( rmii_rxdv		),
+	.rmii_rxdata					( rmii_rxdata	),
+	.rmii_txen						( rmii_txen		),
+	.rmii_txdata					( rmii_txdata	),
+	.rmii_rst						( rmii_rst		),
+	.m_udp_rx_axis_net				( m_udp_rx		),
+	.s_udp_tx_axis_net				( s_udp_tx		),
+	.udp_rx_amount					( udp_rx_amount	),
+	.udp_tx_amount					( udp_tx_amount	)
 );
+
+	// 接口成员 <-> 回环信号
+	assign m_udp_rx.tready	= 1'b1;						// 忽略 tready
+	assign udp_rx_tdata		= m_udp_rx.tdata;
+	assign udp_rx_tvalid	= m_udp_rx.tvalid;
+	assign udp_rx_tlast		= m_udp_rx.tlast;
+	assign s_udp_tx.tdata	= udp_tx_tdata;
+	assign s_udp_tx.tvalid	= udp_tx_tvalid;
+	assign s_udp_tx.tlast	= udp_tx_tlast;
+	assign udp_tx_tready	= s_udp_tx.tready;
+
+	// 回环: RX 数据 -> FIFO -> TX
+	wire							fifo_empty;
+	reg								fwd;						// 正在转发一个数据报
+	reg								udp_rx_tlast_d;
+	reg		[15:0]					udp_tx_amount_r;
+
 fifo fifo_inst (
-	.clock ( rmii_clk ),
-	.rstn  ( sys_rst_n),
-	.data  ( udp_rxdata ),
-	.rdreq ( udp_txreq ),
-	.wrreq ( udp_rxdv ),
-	.empty ( empty_sig ),
-	.full  ( full_sig ),
-	.q     ( udp_txdata )
+	.clock	( rmii_clk			),
+	.rstn	( sys_rst_n			),
+	.data	( udp_rx_tdata		),
+	.wrreq	( udp_rx_tvalid		),
+	.rdreq	( udp_tx_tready && fwd ),
+	.empty	( fifo_empty		),
+	.full	( 					),
+	.q		( udp_tx_tdata		)
 );
 
-
-
-always @ ( posedge rmii_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		udp_txstart <= 1'b0;
-	end else if ( udp_rxend ) begin
-		udp_txstart <= 1'b1;
-	end else begin
-		udp_txstart <= 1'b0;
-	end
-end
+wire rx_frame_start = udp_rx_tlast && !udp_rx_tlast_d;
 
 always @ ( posedge rmii_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
-		udp_txamount <= 16'd0;
-	end else if ( udp_rxstart ) begin
-		udp_txamount <= udp_rxamount;
+		udp_rx_tlast_d <= 1'b0;
+		fwd <= 1'b0;
+		udp_tx_amount_r <= 16'd0;
 	end else begin
-		udp_txamount <= udp_txamount;
+		udp_rx_tlast_d <= udp_rx_tlast;
+		if ( rx_frame_start && fifo_empty ) begin
+			fwd <= 1'b1;
+			udp_tx_amount_r <= udp_rx_amount;
+		end else if ( fifo_empty && fwd && !udp_rx_tlast ) begin
+			fwd <= 1'b0;
+		end
 	end
 end
+
+assign udp_tx_tvalid = fwd && !fifo_empty;
+assign udp_tx_tlast  = fwd && !fifo_empty;
+assign udp_tx_amount = udp_tx_amount_r;
 
 endmodule
