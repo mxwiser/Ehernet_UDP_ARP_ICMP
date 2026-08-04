@@ -47,6 +47,7 @@ module udp_axis_tx(
     reg [15:0] fcs_start;
 
     wire [15:0] total_len   = 16'd28 + amount_r + pad_len;
+    wire [15:0] udp_len     = 16'd8 + amount_r;
     wire [15:0] total_bytes = fcs_start + 16'd4;
 
     wire payload_region = tx_active && (cnt >= 16'd50) && (cnt < payload_end);
@@ -123,7 +124,7 @@ module udp_axis_tx(
         end else if (cnt < 16'd46) begin
             tx_byte = (cnt == 16'd44) ? pc_port[15:8] : pc_port[7:0];
         end else if (cnt < 16'd48) begin
-            tx_byte = (cnt == 16'd46) ? (16'd8 + amount_r)[15:8] : (16'd8 + amount_r)[7:0];
+            tx_byte = (cnt == 16'd46) ? udp_len[15:8] : udp_len[7:0];
         end else if (cnt < 16'd50) begin
             tx_byte = 8'h00;
         end else if (cnt < fcs_start) begin
