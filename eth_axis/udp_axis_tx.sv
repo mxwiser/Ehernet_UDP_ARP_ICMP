@@ -1,6 +1,4 @@
-`include "axis.svh"
-
-// udp_axis_tx: UDP 数据 AXIS 流 -> 网络 AXIS 流
+// udp_axis_tx: UDP 数据 AXIS 流 -> 网络 AXIS 流 (普通端口版)
 // 自动生成前导码/SFD/以太网+IP+UDP 头/填充/CRC32, 完整透传帧
 // tlast 为帧电平(帧内高电平), 网络流接受 tready 反压
 // 帧内应用数据必须连续, 断流则本帧作废(截断发送)
@@ -9,14 +7,26 @@ module udp_axis_tx(
     input  wire         sys_clk,
     input  wire         sys_rst_n,
 
-    axis.slave          s_axis,              // UDP 数据输入(应用层)
-    axis.master         m_axis,              // 网络发送流(到 eth_arp_axis)
+    // UDP 数据输入(应用层)
+    input  wire [7:0]   axis_s_tdata,
+    input  wire         axis_s_tvalid,
+    input  wire         axis_s_tlast,
+    output wire         axis_s_tready,
+    input  wire [15:0]  udp_tx_amount,
 
-    input  wire [15:0]  udp_tx_amount,       // UDP 数据长度
-    input  wire [47:0]  pc_mac_addr,         // 对端 MAC(eth_arp_axis 学习)
-    input  wire [31:0]  pc_ip_addr,          // 对端 IP(eth_arp_axis 学习)
-    input  wire [15:0]  pc_port,             // 对端端口(udp_axis_rx 学习)
-    input  wire [15:0]  board_port           // 本机端口(udp_axis_rx 学习)
+    // 网络发送流(到 eth_arp_axis)
+    output reg  [7:0]   axis_m_tdata,
+    output reg          axis_m_tvalid,
+    output reg          axis_m_tlast,
+    input  wire         axis_m_tready,
+
+    // 对端地址(由 eth_arp_axis/udp_axis_rx 学习)
+    input  wire [47:0]  pc_mac_addr,
+    input  wire [31:0]  pc_ip_addr,
+    input  wire [15:0]  pc_port,
+    input  wire [15:0]  board_port,
+
+    output reg          udp_tx_done          // 调试: UDP 回复帧发送完毕(1拍脉冲)
 );
 
     parameter BOARD_MAC_ADDR = 48'h00_11_22_33_44_55;
@@ -52,8 +62,8 @@ module udp_axis_tx(
 
     wire payload_region = tx_active && (cnt >= 16'd50) && (cnt < payload_end);
     wire in_frame_data  = tx_active && (cnt >= 16'd8) && (cnt < fcs_start);
-    wire tx_advance     = tx_active && m_axis.tready;
-    wire frame_start    = !tx_active && s_axis.tvalid && s_axis.tlast;
+    wire tx_advance     = tx_active && axis_m_tready;
+    wire frame_start    = !tx_active && axis_s_tvalid && axis_s_tlast;
 
     // CRC32_D8 控制
     wire crc_start = tx_advance && (cnt == 16'd8);
@@ -128,18 +138,17 @@ module udp_axis_tx(
         end else if (cnt < 16'd50) begin
             tx_byte = 8'h00;
         end else if (cnt < fcs_start) begin
-            tx_byte = (cnt < payload_end) ? s_axis.tdata : 8'h00;
+            tx_byte = (cnt < payload_end) ? axis_s_tdata : 8'h00;
         end else begin
             tx_byte = crc32_r[((cnt - fcs_start) << 3) +: 8];
         end
     end
 
     // 输出
-    assign m_axis.tvalid = tx_active;
-    assign m_axis.tlast  = tx_active;
-    assign m_axis.tdata  = tx_byte;
-    assign m_axis.tuser  = 1'b0;
-    assign s_axis.tready = payload_region && m_axis.tready;
+    assign axis_m_tvalid = tx_active;
+    assign axis_m_tlast  = tx_active;
+    assign axis_m_tdata  = tx_byte;
+    assign axis_s_tready = payload_region && axis_m_tready;
 
     always @(posedge sys_clk or negedge sys_rst_n) begin
         if (!sys_rst_n) begin
@@ -148,25 +157,30 @@ module udp_axis_tx(
             ip_id_r    <= 16'd0;
             ip_csum_r  <= 16'd0;
             crc32_r    <= 32'h0;
-        end else if (frame_start) begin
-            tx_active  <= 1'b1;
-            cnt        <= 16'd0;
-            ip_id_r    <= ip_id_next;
-            ip_csum_r  <= ip_checksum;
-        end else if (tx_active) begin
-            if (payload_region && m_axis.tready && !(s_axis.tvalid && s_axis.tlast)) begin
-                // 应用数据断流, 帧已无法恢复, 中止
-                tx_active <= 1'b0;
-            end else if (tx_advance) begin
-                if (cnt == total_bytes - 16'd1) begin
+            udp_tx_done<= 1'b0;
+        end else begin
+            udp_tx_done <= 1'b0;
+            if (frame_start) begin
+                tx_active  <= 1'b1;
+                cnt        <= 16'd0;
+                ip_id_r    <= ip_id_next;
+                ip_csum_r  <= ip_checksum;
+            end else if (tx_active) begin
+                if (payload_region && axis_m_tready && !(axis_s_tvalid && axis_s_tlast)) begin
+                    // 应用数据断流, 帧已无法恢复, 中止
                     tx_active <= 1'b0;
-                    cnt       <= 16'd0;
-                end else begin
-                    cnt <= cnt + 16'd1;
+                end else if (tx_advance) begin
+                    if (cnt == total_bytes - 16'd1) begin
+                        tx_active   <= 1'b0;
+                        cnt         <= 16'd0;
+                        udp_tx_done <= 1'b1;
+                    end else begin
+                        cnt <= cnt + 16'd1;
+                    end
                 end
-            end
-            if (crc_end) begin
-                crc32_r <= crc32;
+                if (crc_end) begin
+                    crc32_r <= crc32;
+                end
             end
         end
     end

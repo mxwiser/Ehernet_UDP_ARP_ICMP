@@ -1,14 +1,12 @@
-`include "axis.svh"
-
 // rmii_axis: RMII PHY(LAN8720A) <-> AXI-Stream 透明转换
 // 数据通路: UDP核 <-> AXIS <-> RMII
 // 帧边界约定(tlast 为电平信号):
 //   tlast 高电平 = 帧开始/帧内, 上升沿 = 帧开始
 //   tlast 低电平 = 帧结束,     下降沿 = 帧结束
-// RX: m_rmii_rx_axis_net 忽略 tready, 字节有效时拉高 tvalid
+// RX: m_rx_* 忽略 tready, 字节有效时拉高 tvalid
 //     CRS_DV 会先于帧数据结束(尾部剩余数据组), 拉低后进入采样窗口
 //     窗口内 tlast 保持高电平继续拼字节, 确认无剩余数据后才拉低 tlast
-// TX: s_rmii_tx_axis_net 由本模块产生 tready 反压
+// TX: s_tx_* 由本模块产生 tready 反压
 // 透传模式: 前导码/SFD/CRC 均由上层负责, 本模块不删减任何数据
 
 module rmii_axis(
@@ -21,9 +19,15 @@ module rmii_axis(
     output  reg             rmii_txen,
     output  wire    [1:0]   rmii_txdata,
     output  wire            rmii_rst,                   // PHY 复位, 恒高
-    // AXIS
-    axis.master             m_rmii_rx_axis_net,         // tlast: 帧电平; 忽略 tready
-    axis.slave              s_rmii_tx_axis_net          // tlast: 帧电平; 下降沿结束
+    // AXIS RX (master, tlast: 帧电平; 忽略 tready)
+    output  wire    [7:0]   m_rx_tdata,
+    output  wire            m_rx_tvalid,
+    output  wire            m_rx_tlast,
+    // AXIS TX (slave, tlast: 帧电平; 下降沿结束)
+    input   wire    [7:0]   s_tx_tdata,
+    input   wire            s_tx_tvalid,
+    input   wire            s_tx_tlast,
+    output  wire            s_tx_tready
 );
 
     parameter RX_TAIL_CLKS  = 4'd2;                     // CRS_DV 拉低后继续采样确认帧结束的时钟数
@@ -57,10 +61,9 @@ module rmii_axis(
         endcase
     endfunction
 
-    assign m_rmii_rx_axis_net.tlast  = rx_in_frame;
-    assign m_rmii_rx_axis_net.tvalid = rx_in_frame && (rx_nib_cnt == 2'd3);
-    assign m_rmii_rx_axis_net.tdata  = rx_shift;
-    assign m_rmii_rx_axis_net.tuser  = 1'b0;
+    assign m_rx_tlast  = rx_in_frame;
+    assign m_rx_tvalid = rx_in_frame && (rx_nib_cnt == 2'd3);
+    assign m_rx_tdata  = rx_shift;
 
     always_ff @(posedge rmii_clk or negedge rstn) begin
         if (!rstn) begin
@@ -117,10 +120,10 @@ module rmii_axis(
     logic       tx_abort;
 
     wire tx_can_accept = (tx_nib_cnt == 2'd3) || !tx_buf_valid;
-    wire tx_accept = s_rmii_tx_axis_net.tvalid && s_rmii_tx_axis_net.tlast &&
+    wire tx_accept = s_tx_tvalid && s_tx_tlast &&
                      (tx_ifg_cnt == 8'd0) && tx_can_accept;
 
-    assign s_rmii_tx_axis_net.tready = tx_abort || (tx_can_accept && (tx_ifg_cnt == 8'd0));
+    assign s_tx_tready = tx_abort || (tx_can_accept && (tx_ifg_cnt == 8'd0));
     assign rmii_txdata = tx_shift[1:0];
     assign rmii_rst    = 1'b1;
 
@@ -138,12 +141,12 @@ module rmii_axis(
 
             if (tx_abort) begin
                 // 丢弃本帧剩余数据, 直到 tlast 下降
-                if (!s_rmii_tx_axis_net.tlast) begin
+                if (!s_tx_tlast) begin
                     tx_abort   <= 1'b0;
                     tx_ifg_cnt <= TX_IFG_CLKS;
                 end
             end else if (tx_accept) begin
-                tx_shift     <= s_rmii_tx_axis_net.tdata;
+                tx_shift     <= s_tx_tdata;
                 tx_nib_cnt   <= 2'd0;
                 tx_buf_valid <= 1'b1;
                 rmii_txen    <= 1'b1;
@@ -152,7 +155,7 @@ module rmii_axis(
                     tx_buf_valid <= 1'b0;
                     tx_nib_cnt   <= 2'd0;
                     tx_shift     <= 8'h0;
-                    if (!s_rmii_tx_axis_net.tlast) begin
+                    if (!s_tx_tlast) begin
                         rmii_txen  <= 1'b0;
                         tx_ifg_cnt <= TX_IFG_CLKS;
                     end else begin
