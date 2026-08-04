@@ -1,4 +1,6 @@
-// udp_loop: EP4CE10 + LAN8720A UDP 回环 (普通端口版)
+`include "axis.svh"
+
+// udp_loop: EP4CE10 + LAN8720A UDP 回环 (AXIS 版本)
 // PC 发来的 UDP 数据经 eth_axis 解析后存入 FIFO, 回环发回 PC
 module udp_loop (
 	input	wire						sys_rst_n,
@@ -16,17 +18,15 @@ logic[23:0] blink1;
 logic[1:0]  rled;
 assign led = rled;
 
-// 调试 LED:
-//   LED[0]: 收到并解析出 UDP 数据(亮 200ms)
-//   LED[1]: UDP 回复帧已发出(亮 200ms)
+// 调试 LED: 收到帧 -> LED0 亮 200ms, 发出 ARP 回复 -> LED1 亮 200ms
 always_ff@(posedge rmii_clk or negedge sys_rst_n)begin
     if(sys_rst_n == 1'b0)begin
         blink0 <= 24'd0;
         blink1 <= 24'd0;
     end else begin
-        if (dbg_udp_rx)    blink0 <= 24'd10_000_000;
+        if (dbg_frame_rx)  blink0 <= 24'd10_000_000;
         else if (blink0 != 24'd0) blink0 <= blink0 - 24'd1;
-        if (dbg_udp_tx)    blink1 <= 24'd10_000_000;
+        if (dbg_arp_reply) blink1 <= 24'd10_000_000;
         else if (blink1 != 24'd0) blink1 <= blink1 - 24'd1;
     end
 end
@@ -44,8 +44,12 @@ assign rled[1] = (blink1 != 24'd0);
 	wire							udp_tx_tlast;
 	wire							udp_tx_tready;
 	wire	[15:0]					udp_tx_amount;
-	wire							dbg_udp_rx;
-	wire							dbg_udp_tx;
+	wire							dbg_frame_rx;
+	wire							dbg_arp_req;
+	wire							dbg_arp_reply;
+
+	axis	m_udp_rx();
+	axis	s_udp_tx();
 
 eth_axis							u1_eth_axis (
 	.sys_rst_n						( sys_rst_n		),
@@ -55,22 +59,24 @@ eth_axis							u1_eth_axis (
 	.rmii_txen						( rmii_txen		),
 	.rmii_txdata					( rmii_txdata	),
 	.rmii_rst						( rmii_rst		),
-	.udp_rx_tdata					( udp_rx_tdata	),
-	.udp_rx_tvalid					( udp_rx_tvalid	),
-	.udp_rx_tlast					( udp_rx_tlast	),
-	.udp_rx_tready					( 1'b1			),
+	.m_udp_rx_axis_net				( m_udp_rx		),
+	.s_udp_tx_axis_net				( s_udp_tx		),
 	.udp_rx_amount					( udp_rx_amount	),
-	.udp_tx_tdata					( udp_tx_tdata	),
-	.udp_tx_tvalid					( udp_tx_tvalid	),
-	.udp_tx_tlast					( udp_tx_tlast	),
-	.udp_tx_tready					( udp_tx_tready	),
 	.udp_tx_amount					( udp_tx_amount	),
-	.dbg_frame_rx					( 				),
-	.dbg_arp_req					( 				),
-	.dbg_arp_reply					( 				),
-	.dbg_udp_rx						( dbg_udp_rx	),
-	.dbg_udp_tx						( dbg_udp_tx	)
+	.dbg_frame_rx					( dbg_frame_rx	),
+	.dbg_arp_req					( dbg_arp_req	),
+	.dbg_arp_reply					( dbg_arp_reply	)
 );
+
+	// 接口成员 <-> 回环信号
+	assign m_udp_rx.tready	= 1'b1;						// 忽略 tready
+	assign udp_rx_tdata		= m_udp_rx.tdata;
+	assign udp_rx_tvalid	= m_udp_rx.tvalid;
+	assign udp_rx_tlast		= m_udp_rx.tlast;
+	assign s_udp_tx.tdata	= udp_tx_tdata;
+	assign s_udp_tx.tvalid	= udp_tx_tvalid;
+	assign s_udp_tx.tlast	= udp_tx_tlast;
+	assign udp_tx_tready	= s_udp_tx.tready;
 
 	// 回环: RX 数据 -> FIFO -> TX
 	wire							fifo_empty;
