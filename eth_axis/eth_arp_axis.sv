@@ -2,6 +2,7 @@
 
 // eth_arp_axis: 以太网 ARP 处理 + 发送仲裁 (AXIS 版本)
 // RX: 所有网络帧透传给 udp_axis_rx(由其过滤), 本模块并行解析 ARP:
+//     扫描式前导同步(容忍帧首多余数据/前导长度变化),
 //     收到发给本机的 ARP 请求(CRC32 校验通过)后学习对端 MAC/IP 并自动回复
 // TX: 仲裁 ARP 回复与 udp_axis_tx 的网络帧, 输出到 rmii_axis
 // tlast 为帧电平(帧内高电平), 网络流带 tready 反压
@@ -15,29 +16,34 @@ module eth_arp_axis(
     axis.master         m_tx_net,          // 输出到 rmii_axis 的网络发送流
 
     output reg  [47:0]  pc_mac_addr,       // 学习到的对端 MAC
-    output reg  [31:0]  pc_ip_addr         // 学习到的对端 IP
+    output reg  [31:0]  pc_ip_addr,        // 学习到的对端 IP
+    output wire         arp_req_pulse,     // 调试: 收到有效 ARP 请求(1拍脉冲)
+    output wire         arp_reply_pulse    // 调试: ARP 回复发送完毕(1拍脉冲)
 );
 
     parameter BOARD_MAC_ADDR = 48'h00_11_22_33_44_55;
     parameter BOARD_IP_ADDR  = 32'hA9_FE_01_17;
 
 //-------------------------------------------------------------
-// RX: 逐字节位置解析 ARP 请求
-// 帧字节位置: 0-6 前导, 7 SFD, 8-13 DA, 14-19 SA, 20-21 类型,
-// 22-27 ARP头(htype/ptype/hlen/plen), 28-29 操作码,
-// 30-35 SHA, 36-39 SPA, 40-45 THA, 46-49 TPA, 50-67 填充, 68-71 FCS
+// RX: 前导扫描 + 同步后逐字节解析
+// 同步前: 数连续 0x55, 第 7 个 0x55 后的 0xD5 为 SFD, 同步完成
+// 同步后(位置从 DA 首字节计):
+//  0-5 DA, 6-11 SA, 12-13 类型, 14-27 ARP头(htype/ptype/hlen/plen/oper),
+//  28-31 SPA, 38-41 TPA, 42-59 填充, 60-63 FCS
 //-------------------------------------------------------------
-    reg        rx_active;
-    reg [6:0]  rx_cnt;
+    reg        rx_active;          // 帧内(tlast 高)
+    reg        rx_synced;          // 已同步到 SFD
+    reg [6:0]  rx_cnt;             // 同步后的字节位置
+    reg [2:0]  rx_pre_cnt;         // 前导 0x55 计数
     reg        rx_bad;
-    reg        rx_arp_req;          // TPA 匹配本机
+    reg        rx_arp_req;         // TPA 匹配本机
     reg [47:0] des_mac;
     reg [47:0] src_mac;
     reg [31:0] spa;
     reg [31:0] tpa;
     reg [31:0] rx_crc32_read;
     reg [31:0] rx_crc32_r;
-    reg        rx_reply;            // 1 拍脉冲: 需要回复
+    reg        rx_reply;           // 1 拍脉冲: 需要回复
 
     reg tlast_d;
 
@@ -60,10 +66,10 @@ module eth_arp_axis(
         end
     end
 
-    // RX CRC32 控制(覆盖 DA 到填充结束)
-    wire rx_crc_start = s_rx_net.tvalid && rx_active && (rx_cnt == 7'd8);
-    wire rx_crc_end   = s_rx_net.tvalid && rx_active && (rx_cnt == 7'd67);
-    wire rx_crc_en    = s_rx_net.tvalid && rx_active && (rx_cnt >= 7'd8) && (rx_cnt <= 7'd67);
+    // RX CRC32 控制(同步后 DA 到填充结束)
+    wire rx_crc_start = s_rx_net.tvalid && rx_active && rx_synced && (rx_cnt == 7'd0);
+    wire rx_crc_end   = s_rx_net.tvalid && rx_active && rx_synced && (rx_cnt == 7'd59);
+    wire rx_crc_en    = s_rx_net.tvalid && rx_active && rx_synced && (rx_cnt <= 7'd59);
 
     wire [31:0] rx_crc32_w;
     wire        rx_crc32_valid;
@@ -82,7 +88,9 @@ module eth_arp_axis(
     always @(posedge sys_clk or negedge sys_rst_n) begin
         if (!sys_rst_n) begin
             rx_active    <= 1'b0;
+            rx_synced    <= 1'b0;
             rx_cnt       <= 7'd0;
+            rx_pre_cnt   <= 3'd0;
             rx_bad       <= 1'b0;
             rx_arp_req   <= 1'b0;
             des_mac      <= 48'h0;
@@ -93,91 +101,102 @@ module eth_arp_axis(
             rx_crc32_read<= 32'h0;
         end else if (rx_frame_end) begin
             rx_active    <= 1'b0;
+            rx_synced    <= 1'b0;
             rx_cnt       <= 7'd0;
+            rx_pre_cnt   <= 3'd0;
             rx_bad       <= 1'b0;
             rx_arp_req   <= 1'b0;
         end else if (rx_frame_start) begin
             rx_active    <= 1'b1;
+            rx_synced    <= 1'b0;
             rx_cnt       <= 7'd0;
+            rx_pre_cnt   <= 3'd0;
             rx_bad       <= 1'b0;
             rx_arp_req   <= 1'b0;
         end else if (rx_active && s_rx_net.tvalid) begin
-            // CRC 校验值锁存(数据最后一字节)
-            if (rx_crc_end) begin
-                rx_crc32_r <= rx_crc32_w;
+            if (!rx_synced) begin
+                // 前导扫描: 数连续 0x55, 第 7 个之后出现 0xD5 即同步
+                if (s_rx_net.tdata == 8'h55) begin
+                    if (rx_pre_cnt < 3'd7) begin
+                        rx_pre_cnt <= rx_pre_cnt + 3'd1;
+                    end
+                end else if (s_rx_net.tdata == 8'hD5 && rx_pre_cnt == 3'd7) begin
+                    rx_synced  <= 1'b1;
+                    rx_cnt     <= 7'd0;
+                    rx_pre_cnt <= 3'd0;
+                end else begin
+                    rx_pre_cnt <= 3'd0;
+                end
+            end else begin
+                // CRC 校验值锁存(填充最后一字节)
+                if (rx_crc_end) begin
+                    rx_crc32_r <= rx_crc32_w;
+                end
+
+                case (rx_cnt)
+                    7'd0:  des_mac[47:40] <= s_rx_net.tdata;
+                    7'd1:  des_mac[39:32] <= s_rx_net.tdata;
+                    7'd2:  des_mac[31:24] <= s_rx_net.tdata;
+                    7'd3:  des_mac[23:16] <= s_rx_net.tdata;
+                    7'd4:  des_mac[15:8]  <= s_rx_net.tdata;
+                    7'd5:  begin
+                        des_mac[7:0] <= s_rx_net.tdata;
+                        if ({des_mac[47:8], s_rx_net.tdata} != 48'hFF_FF_FF_FF_FF_FF &&
+                            {des_mac[47:8], s_rx_net.tdata} != BOARD_MAC_ADDR) begin
+                            rx_bad <= 1'b1;
+                        end
+                    end
+                    7'd6:  src_mac[47:40] <= s_rx_net.tdata;
+                    7'd7:  src_mac[39:32] <= s_rx_net.tdata;
+                    7'd8:  src_mac[31:24] <= s_rx_net.tdata;
+                    7'd9:  src_mac[23:16] <= s_rx_net.tdata;
+                    7'd10: src_mac[15:8]  <= s_rx_net.tdata;
+                    7'd11: src_mac[7:0]   <= s_rx_net.tdata;
+                    7'd12: if (s_rx_net.tdata != 8'h08) rx_bad <= 1'b1;
+                    7'd13: if (s_rx_net.tdata != 8'h06) rx_bad <= 1'b1;
+                    7'd14: if (s_rx_net.tdata != 8'h00) rx_bad <= 1'b1;
+                    7'd15: if (s_rx_net.tdata != 8'h01) rx_bad <= 1'b1;
+                    7'd16: if (s_rx_net.tdata != 8'h08) rx_bad <= 1'b1;
+                    7'd17: if (s_rx_net.tdata != 8'h00) rx_bad <= 1'b1;
+                    7'd18: if (s_rx_net.tdata != 8'h06) rx_bad <= 1'b1;
+                    7'd19: if (s_rx_net.tdata != 8'h04) rx_bad <= 1'b1;
+                    7'd20: if (s_rx_net.tdata != 8'h00) rx_bad <= 1'b1;
+                    7'd21: if (s_rx_net.tdata != 8'h01) rx_bad <= 1'b1;
+                    7'd28: spa[31:24] <= s_rx_net.tdata;
+                    7'd29: spa[23:16] <= s_rx_net.tdata;
+                    7'd30: spa[15:8]  <= s_rx_net.tdata;
+                    7'd31: spa[7:0]   <= s_rx_net.tdata;
+                    7'd38: tpa[31:24] <= s_rx_net.tdata;
+                    7'd39: tpa[23:16] <= s_rx_net.tdata;
+                    7'd40: tpa[15:8]  <= s_rx_net.tdata;
+                    7'd41: begin
+                        if ({tpa[31:8], s_rx_net.tdata} == BOARD_IP_ADDR) begin
+                            rx_arp_req <= 1'b1;
+                        end else begin
+                            rx_bad <= 1'b1;
+                        end
+                    end
+                    7'd60: rx_crc32_read[7:0]   <= s_rx_net.tdata;
+                    7'd61: rx_crc32_read[15:8]  <= s_rx_net.tdata;
+                    7'd62: rx_crc32_read[23:16] <= s_rx_net.tdata;
+                    7'd63: begin
+                        if (!rx_bad && rx_arp_req && {s_rx_net.tdata, rx_crc32_read[23:0]} == rx_crc32_r) begin
+                            pc_mac_addr <= src_mac;
+                            pc_ip_addr  <= spa;
+                        end
+                    end
+                endcase
+
+                rx_cnt <= rx_cnt + 7'd1;
             end
-
-            case (rx_cnt)
-                7'd0:  if (s_rx_net.tdata != 8'h55) rx_bad <= 1'b1;
-                7'd1:  if (s_rx_net.tdata != 8'h55) rx_bad <= 1'b1;
-                7'd2:  if (s_rx_net.tdata != 8'h55) rx_bad <= 1'b1;
-                7'd3:  if (s_rx_net.tdata != 8'h55) rx_bad <= 1'b1;
-                7'd4:  if (s_rx_net.tdata != 8'h55) rx_bad <= 1'b1;
-                7'd5:  if (s_rx_net.tdata != 8'h55) rx_bad <= 1'b1;
-                7'd6:  if (s_rx_net.tdata != 8'h55) rx_bad <= 1'b1;
-                7'd7:  if (s_rx_net.tdata != 8'hD5) rx_bad <= 1'b1;
-                7'd8:  des_mac[47:40] <= s_rx_net.tdata;
-                7'd9:  des_mac[39:32] <= s_rx_net.tdata;
-                7'd10: des_mac[31:24] <= s_rx_net.tdata;
-                7'd11: des_mac[23:16] <= s_rx_net.tdata;
-                7'd12: des_mac[15:8]  <= s_rx_net.tdata;
-                7'd13: begin
-                    des_mac[7:0] <= s_rx_net.tdata;
-                    if ({des_mac[47:8], s_rx_net.tdata} != 48'hFF_FF_FF_FF_FF_FF &&
-                        {des_mac[47:8], s_rx_net.tdata} != BOARD_MAC_ADDR) begin
-                        rx_bad <= 1'b1;
-                    end
-                end
-                7'd14: src_mac[47:40] <= s_rx_net.tdata;
-                7'd15: src_mac[39:32] <= s_rx_net.tdata;
-                7'd16: src_mac[31:24] <= s_rx_net.tdata;
-                7'd17: src_mac[23:16] <= s_rx_net.tdata;
-                7'd18: src_mac[15:8]  <= s_rx_net.tdata;
-                7'd19: src_mac[7:0]   <= s_rx_net.tdata;
-                7'd20: if (s_rx_net.tdata != 8'h08) rx_bad <= 1'b1;
-                7'd21: if (s_rx_net.tdata != 8'h06) rx_bad <= 1'b1;
-                7'd22: if (s_rx_net.tdata != 8'h00) rx_bad <= 1'b1;
-                7'd23: if (s_rx_net.tdata != 8'h01) rx_bad <= 1'b1;
-                7'd24: if (s_rx_net.tdata != 8'h08) rx_bad <= 1'b1;
-                7'd25: if (s_rx_net.tdata != 8'h00) rx_bad <= 1'b1;
-                7'd26: if (s_rx_net.tdata != 8'h06) rx_bad <= 1'b1;
-                7'd27: if (s_rx_net.tdata != 8'h04) rx_bad <= 1'b1;
-                7'd28: if (s_rx_net.tdata != 8'h00) rx_bad <= 1'b1;
-                7'd29: if (s_rx_net.tdata != 8'h01) rx_bad <= 1'b1;
-                7'd36: spa[31:24] <= s_rx_net.tdata;
-                7'd37: spa[23:16] <= s_rx_net.tdata;
-                7'd38: spa[15:8]  <= s_rx_net.tdata;
-                7'd39: spa[7:0]   <= s_rx_net.tdata;
-                7'd46: tpa[31:24] <= s_rx_net.tdata;
-                7'd47: tpa[23:16] <= s_rx_net.tdata;
-                7'd48: tpa[15:8]  <= s_rx_net.tdata;
-                7'd49: begin
-                    if ({tpa[31:8], s_rx_net.tdata} == BOARD_IP_ADDR) begin
-                        rx_arp_req <= 1'b1;
-                    end else begin
-                        rx_bad <= 1'b1;
-                    end
-                end
-                7'd68: rx_crc32_read[7:0]   <= s_rx_net.tdata;
-                7'd69: rx_crc32_read[15:8]  <= s_rx_net.tdata;
-                7'd70: rx_crc32_read[23:16] <= s_rx_net.tdata;
-                7'd71: begin
-                    if (!rx_bad && rx_arp_req && {s_rx_net.tdata, rx_crc32_read[23:0]} == rx_crc32_r) begin
-                        pc_mac_addr <= src_mac;
-                        pc_ip_addr  <= spa;
-                    end
-                end
-            endcase
-
-            rx_cnt <= rx_cnt + 7'd1;
         end
     end
 
-    // rx_reply 脉冲: CRC32 校验通过且为发给本机的 ARP 请求
+    // arp_req_pulse: CRC32 校验通过且为发给本机的 ARP 请求
     always @(posedge sys_clk or negedge sys_rst_n) begin
         if (!sys_rst_n) begin
             rx_reply <= 1'b0;
-        end else if (rx_active && s_rx_net.tvalid && (rx_cnt == 7'd71) &&
+        end else if (rx_active && rx_synced && s_rx_net.tvalid && (rx_cnt == 7'd63) &&
                      !rx_bad && rx_arp_req &&
                      ({s_rx_net.tdata, rx_crc32_read[23:0]} == rx_crc32_r)) begin
             rx_reply <= 1'b1;
@@ -185,6 +204,7 @@ module eth_arp_axis(
             rx_reply <= 1'b0;
         end
     end
+    assign arp_req_pulse = rx_reply;
 
 //-------------------------------------------------------------
 // TX: ARP 回复生成
@@ -196,6 +216,7 @@ module eth_arp_axis(
     reg [31:0] arp_crc32_r;
     reg [47:0] tx_des_mac;
     reg [31:0] tx_des_ip;
+    reg        arp_done;            // 回复帧结束脉冲
 
     always @(posedge sys_clk or negedge sys_rst_n) begin
         if (!sys_rst_n) begin
@@ -205,7 +226,9 @@ module eth_arp_axis(
             arp_crc32_r <= 32'h0;
             tx_des_mac  <= 48'h0;
             tx_des_ip   <= 32'h0;
+            arp_done    <= 1'b0;
         end else begin
+            arp_done <= 1'b0;
             if (rx_reply && !arp_active) begin
                 arp_pend <= 1'b1;
             end
@@ -213,6 +236,7 @@ module eth_arp_axis(
                 if (arp_cnt == 7'd71 && m_tx_net.tready) begin
                     arp_active <= 1'b0;
                     arp_pend   <= 1'b0;
+                    arp_done   <= 1'b1;
                 end else if (m_tx_net.tready) begin
                     arp_cnt <= arp_cnt + 7'd1;
                 end
@@ -227,6 +251,7 @@ module eth_arp_axis(
             end
         end
     end
+    assign arp_reply_pulse = arp_done;
 
     // TX CRC32 控制
     wire arp_crc_start = arp_active && m_tx_net.tready && (arp_cnt == 7'd8);

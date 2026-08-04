@@ -22,7 +22,12 @@ module eth_axis(
     axis.master        m_udp_rx_axis_net,
     axis.slave         s_udp_tx_axis_net,
     output wire [15:0] udp_rx_amount,
-    input  wire [15:0] udp_tx_amount
+    input  wire [15:0] udp_tx_amount,
+
+    // 调试输出(1拍脉冲)
+    output reg         dbg_frame_rx,    // 收到一个完整帧
+    output wire        dbg_arp_req,     // 收到有效 ARP 请求
+    output wire        dbg_arp_reply    // ARP 回复发送完毕
 );
 
     axis net_rx();
@@ -34,6 +39,18 @@ module eth_axis(
     wire [31:0] pc_ip_addr;
     wire [15:0] pc_port;
     wire [15:0] board_port;
+
+    // 帧结束脉冲(调试)
+    reg net_rx_tlast_d;
+    always @(posedge rmii_clk or negedge sys_rst_n) begin
+        if (!sys_rst_n) begin
+            net_rx_tlast_d <= 1'b0;
+            dbg_frame_rx   <= 1'b0;
+        end else begin
+            net_rx_tlast_d <= net_rx.tlast;
+            dbg_frame_rx   <= net_rx_tlast_d && !net_rx.tlast;
+        end
+    end
 
     rmii_axis u_rmii_axis(
         .rstn               ( sys_rst_n     ),
@@ -48,18 +65,20 @@ module eth_axis(
     );
 
     eth_arp_axis u_arp(
-        .sys_clk        ( sys_clk       ),
+        .sys_clk        ( rmii_clk      ),
         .sys_rst_n      ( sys_rst_n     ),
         .s_rx_net       ( net_rx        ),
         .m_udp_rx_net   ( udp_rx_net    ),
         .s_udp_tx_net   ( udp_tx_net    ),
         .m_tx_net       ( net_tx        ),
         .pc_mac_addr    ( pc_mac_addr   ),
-        .pc_ip_addr     ( pc_ip_addr    )
+        .pc_ip_addr     ( pc_ip_addr    ),
+        .arp_req_pulse  ( dbg_arp_req   ),
+        .arp_reply_pulse( dbg_arp_reply )
     );
 
     udp_axis_rx u_udp_rx(
-        .sys_clk        ( sys_clk            ),
+        .sys_clk        ( rmii_clk          ),
         .sys_rst_n      ( sys_rst_n          ),
         .s_axis         ( udp_rx_net         ),
         .m_axis         ( m_udp_rx_axis_net  ),
@@ -69,7 +88,7 @@ module eth_axis(
     );
 
     udp_axis_tx u_udp_tx(
-        .sys_clk        ( sys_clk            ),
+        .sys_clk        ( rmii_clk          ),
         .sys_rst_n      ( sys_rst_n          ),
         .s_axis         ( s_udp_tx_axis_net  ),
         .m_axis         ( udp_tx_net         ),

@@ -33,9 +33,7 @@ module udp_axis_rx(
     reg        tlast_d;
 
     reg [47:0] des_mac;
-    reg [47:0] src_mac;
     reg [31:0] des_ip;
-    reg [31:0] src_ip;
     reg [15:0] src_port;
     reg [15:0] des_port;
     reg [15:0] udp_len;
@@ -95,13 +93,7 @@ module udp_axis_rx(
                         4'd2:  des_mac[31:24] <= s_axis.tdata;
                         4'd3:  des_mac[23:16] <= s_axis.tdata;
                         4'd4:  des_mac[15:8]  <= s_axis.tdata;
-                        4'd5:  des_mac[7:0]   <= s_axis.tdata;
-                        4'd6:  src_mac[47:40] <= s_axis.tdata;
-                        4'd7:  src_mac[39:32] <= s_axis.tdata;
-                        4'd8:  src_mac[31:24] <= s_axis.tdata;
-                        4'd9:  src_mac[23:16] <= s_axis.tdata;
-                        4'd10: src_mac[15:8]  <= s_axis.tdata;
-                        default: src_mac[7:0] <= s_axis.tdata;
+                        default: des_mac[7:0] <= s_axis.tdata;
                     endcase
                     if (cnt_mac == 4'd11) begin
                         if (des_mac == BOARD_MAC_ADDR) begin
@@ -146,10 +138,6 @@ module udp_axis_rx(
 
                     case (cnt_ip)
                         6'd0:  ip_header_len <= {2'b00, s_axis.tdata[3:0]} << 2;
-                        6'd12: src_ip[31:24] <= s_axis.tdata;
-                        6'd13: src_ip[23:16] <= s_axis.tdata;
-                        6'd14: src_ip[15:8]  <= s_axis.tdata;
-                        6'd15: src_ip[7:0]   <= s_axis.tdata;
                         6'd16: des_ip[31:24] <= s_axis.tdata;
                         6'd17: des_ip[23:16] <= s_axis.tdata;
                         6'd18: des_ip[15:8]  <= s_axis.tdata;

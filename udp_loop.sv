@@ -13,20 +13,26 @@ module udp_loop (
 	output	wire						rmii_rst
 );
 
-logic[23:0] ckdiv;
+logic[23:0] blink0;
+logic[23:0] blink1;
 logic[1:0]  rled;
 assign led = rled;
 
+// 调试 LED: 收到帧 -> LED0 亮 200ms, 发出 ARP 回复 -> LED1 亮 200ms
 always_ff@(posedge rmii_clk or negedge sys_rst_n)begin
     if(sys_rst_n == 1'b0)begin
-        rled <= 2'b01;
-        ckdiv <= 24'd0;
+        blink0 <= 24'd0;
+        blink1 <= 24'd0;
     end else begin
-        ckdiv <= ckdiv + 24'd1;
-        if(ckdiv == 24'd0)
-            rled <= !rled;
+        if (dbg_frame_rx)  blink0 <= 24'd10_000_000;
+        else if (blink0 != 24'd0) blink0 <= blink0 - 24'd1;
+        if (dbg_arp_reply) blink1 <= 24'd10_000_000;
+        else if (blink1 != 24'd0) blink1 <= blink1 - 24'd1;
     end
 end
+
+assign rled[0] = (blink0 != 24'd0);
+assign rled[1] = (blink1 != 24'd0);
 
 	// UDP 应用层 AXIS
 	wire [7:0]						udp_rx_tdata;
@@ -38,6 +44,9 @@ end
 	wire							udp_tx_tlast;
 	wire							udp_tx_tready;
 	wire	[15:0]					udp_tx_amount;
+	wire							dbg_frame_rx;
+	wire							dbg_arp_req;
+	wire							dbg_arp_reply;
 
 	axis	m_udp_rx();
 	axis	s_udp_tx();
@@ -53,7 +62,10 @@ eth_axis							u1_eth_axis (
 	.m_udp_rx_axis_net				( m_udp_rx		),
 	.s_udp_tx_axis_net				( s_udp_tx		),
 	.udp_rx_amount					( udp_rx_amount	),
-	.udp_tx_amount					( udp_tx_amount	)
+	.udp_tx_amount					( udp_tx_amount	),
+	.dbg_frame_rx					( dbg_frame_rx	),
+	.dbg_arp_req					( dbg_arp_req	),
+	.dbg_arp_reply					( dbg_arp_reply	)
 );
 
 	// 接口成员 <-> 回环信号
