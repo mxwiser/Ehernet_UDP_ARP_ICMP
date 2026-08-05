@@ -48,7 +48,10 @@ udp								u1_udp (
 	.udp_txbusy							( udp_txbusy	)
 );
 
-fifo							u2_fifo_2048_d8 (
+fifo#(
+	.DATA_WIDTH('d8),
+	.DEPTH('d1024)
+)							u2_fifo_1024_d8 (
 	.rstn								( sys_rst_n		),
 	.clock								( rmii_clk		),
 	.data								( udp_rxdata	),

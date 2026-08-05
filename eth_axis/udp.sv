@@ -88,7 +88,11 @@ udp_axis_rx#(
 	.board_port							( board_port		)
 );
 
-udp_axis_tx								u_udp_axis_tx (
+udp_axis_tx#(	
+	.BOARD_IP_ADDR   (BOARD_IP_ADDR),
+	.BOARD_MAC_ADDR  (BOARD_MAC_ADDR)
+)								
+										u_udp_axis_tx (
 	.sys_clk							( rmii_clk			),
 	.sys_rst_n							( sys_rst_n			),
 	.m_axis_tx							( tx_udp			),
@@ -104,6 +108,13 @@ udp_axis_tx								u_udp_axis_tx (
 );
 
 
+//tx fifo in
+fifo#(
+	.DATA_WIDTH('d8),
+	.DEPTH('d1024)
+)udp_tx_fifo_1024_d8(
+
+);
 
 
 
