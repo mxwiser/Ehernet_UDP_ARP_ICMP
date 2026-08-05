@@ -28,7 +28,7 @@ module udp(
 	output	wire	[15:0]				udp_rxnum,					// the order of the received data in this package
 
 
-	
+
 	input	wire						udp_txstart,
 	input	wire	[15:0]				udp_txamount,
 	input	wire	[7:0]				udp_txdata,
@@ -96,9 +96,8 @@ udp_axis_tx								u_udp_axis_tx (
 // -------------------------------- TX arbitration (ARP first, same as eth_rmii) -------------------
 // ARP 应答优先; 若 UDP 帧正在发送则等其发完再切换, 避免 mid-frame 切换导致 rmii_axis 丢弃整帧
 // 两个TX的数据打包模块，一个是UDP_RX里面的ARP_TX打包模块，一个是UDP_TX打包模块。
-	wire								tx_select_arp;
+	wire						    tx_select_arp;
 	assign		tx_select_arp	=	arp_working && !udp_txbusy;
-
 	assign		tx_net.tdata	=	tx_select_arp ? tx_arp.tdata	: tx_udp.tdata;
 	assign		tx_net.tvalid	=	tx_select_arp ? tx_arp.tvalid	: tx_udp.tvalid;
 	assign		tx_net.tlast	=	tx_select_arp ? tx_arp.tlast	: tx_udp.tlast;

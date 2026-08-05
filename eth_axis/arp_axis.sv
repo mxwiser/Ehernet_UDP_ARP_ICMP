@@ -30,9 +30,9 @@ module arp_axis (
 	wire									s_mac_tvalid;
 	wire									s_mac_tlast;				// frame-level: high in frame, falling edge = frame end
 	wire		[7:0]						s_mac_tdata	;
-	assign		s_mac_tlast			=	s_axis_rx.tlast;
-	assign		s_mac_tvalid			=	s_axis_rx.tvalid; 
-	assign		s_mac_tdata			=	s_axis_rx.tdata;
+	assign		s_mac_tlast			=		s_axis_rx.tlast;
+	assign		s_mac_tvalid		=		s_axis_rx.tvalid; 
+	assign		s_mac_tdata			=		s_axis_rx.tdata;
 	assign		s_axis_rx.tready	=	1'b1;
 
 // TX (ARP reply only): txen / txbusy mapped to AXIS handshake.
