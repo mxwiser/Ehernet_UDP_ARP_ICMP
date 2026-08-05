@@ -22,7 +22,7 @@ module arp_axis (
 	output	wire							arp_pc_refresh			// learned pulse
 );
 
-	parameter		BOARD_MAC_ADDR			= 48'h00_11_22_33_44_55;
+	parameter		BOARD_MAC_ADDR			= 48'h00_10_22_33_44_55;
 	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17;				// 169.254.1.23
 
 // -------------------------------- axis <-> gmii bridge ------------------------------------------

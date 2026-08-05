@@ -48,7 +48,8 @@ module udp(
 	axis								tx_net();					// muxed TX -> rmii_axis
 
 	
-
+	parameter		BOARD_MAC_ADDR			= 48'h00_10_22_33_44_55;
+	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17;			// 169.254.1.23
 
 
 
@@ -65,7 +66,11 @@ rmii_axis								u_rmii_axis (
 	.s_rmii_tx_axis_net					( tx_net			)
 );
 
-udp_axis_rx								u_udp_axis_rx (
+udp_axis_rx#(
+	.BOARD_IP_ADDR   (BOARD_IP_ADDR),
+	.BOARD_MAC_ADDR  (BOARD_MAC_ADDR)
+)
+										u_udp_axis_rx (
 	.sys_clk							( rmii_clk			),
 	.sys_rst_n							( sys_rst_n			),
 	.s_axis_rx							( rx_net			),

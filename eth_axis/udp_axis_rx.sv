@@ -2,7 +2,11 @@
 
 
 
-module udp_axis_rx (
+module udp_axis_rx #(
+	parameter		BOARD_MAC_ADDR			= 48'h00_10_22_33_44_55,
+	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17			// 169.254.1.23
+)
+(
 	input	wire							sys_clk,
 	input	wire							sys_rst_n,
 	
@@ -25,8 +29,7 @@ module udp_axis_rx (
 	output	reg		[15:0]					board_port
 );
 
-	parameter		BOARD_MAC_ADDR			= 48'h00_11_22_33_44_55;
-	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17;				// 169.254.1.23
+
 
 // -------------------------------- axis <-> gmii bridge ------------------------------------------
 // RX: s_mac_tvalid / s_mac_tlast / s_mac_tdata come from s_axis_rx, tready is ignored (rmii_axis never backpressures RX)
