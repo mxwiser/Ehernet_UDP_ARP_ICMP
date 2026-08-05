@@ -19,7 +19,7 @@
 module CRC32_D8(
 	input	wire							sys_clk,
 	input	wire							sys_rst_n,
-	input	wire	[7:0]					data,
+	input	wire	[7:0]				data,
 	input	wire							crc_start,					// first valid input data
 	input	wire							crc_en,						// all valid input data
 	input	wire							crc_end,					// last valid input data

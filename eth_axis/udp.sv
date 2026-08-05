@@ -47,8 +47,7 @@ module udp(
 	axis								tx_udp();					// udp_axis_tx UDP data
 	axis								tx_net();					// muxed TX -> rmii_axis
 
-
-
+	
 
 
 
@@ -98,6 +97,10 @@ udp_axis_tx								u_udp_axis_tx (
 	.pc_port							( pc_port			),
 	.board_port							( board_port		)
 );
+
+
+
+
 
 // -------------------------------- TX arbitration (ARP first, same as eth_rmii) -------------------
 // ARP 应答优先; 若 UDP 帧正在发送则等其发完再切换, 避免 mid-frame 切换导致 rmii_axis 丢弃整帧
