@@ -1,13 +1,6 @@
 `include "axis.svh"
 
-// author:		Benjamin SMith
-// create time:	2023/03/17 17:24
-// edit time:	2026/08/05
-// platform:	Cyclone ep4ce10f17i7, Ұ�� board
-// module:		udp_axis_rx
-// function:	UDP received data, IPv4 only. ARP request and response are handled by arp_axis.sv
-//				merge of eth_arp_gmii.v and udp_gmii_rx.v, AXIS version
-// version:		2.1
+
 
 module udp_axis_rx (
 	input	wire							sys_clk,
@@ -67,7 +60,7 @@ arp_axis #(
 );
 // ================================ UDP RX part (from udp_gmii_rx.v) ================================
 
-	localparam		UDP_IDLE					= 18'h0_0001,
+	localparam		UDP_IDLE				= 18'h0_0001,
 					SFD						= 18'h0_0002,
 					MAC_ADDR				= 18'h0_0004,					// destination MAC and source MAC
 					UDP_TYPE					= 18'h0_0008,					// 'h0800, only IPv4 supported
