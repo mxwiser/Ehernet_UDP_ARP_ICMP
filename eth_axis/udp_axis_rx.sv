@@ -36,9 +36,11 @@ module udp_axis_rx (
 	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17;				// 169.254.1.23
 
 // -------------------------------- axis <-> gmii bridge ------------------------------------------
-// RX: s_mac_tvalid / s_mac_tdata come from s_axis_rx, tready is ignored (rmii_axis never backpressures RX)
+// RX: s_mac_tvalid / s_mac_tlast / s_mac_tdata come from s_axis_rx, tready is ignored (rmii_axis never backpressures RX)
 	wire									s_mac_tvalid;
+	wire									s_mac_tlast;				// frame-level: high in frame, falling edge = frame end
 	wire		[7:0]						s_mac_tdata	;
+	assign		s_mac_tlast			=	s_axis_rx.tlast;
 	assign		s_mac_tvalid			=	s_axis_rx.tvalid; 
 	assign		s_mac_tdata			=	s_axis_rx.tdata;
 	assign		s_axis_rx.tready	=	1'b1;
@@ -114,7 +116,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		RX_SFD: begin
 			if ( s_mac_tvalid && ( s_mac_tdata == 8'hD5 ) ) begin				// when correct SFD (0xD5) is received, jump to next state
 				rx_state <= MAC_DES;
-			end else if ( s_mac_tvalid ) begin
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
 				rx_state <= IDLE;
 			end else begin
 				rx_state <= RX_SFD;
@@ -125,6 +127,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				rx_state <= MAC_SRC;
 			end else if ( rx_cnt_mac_des >= 3'd6 ) begin
 				rx_state <= IDLE;
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
+				rx_state <= IDLE;
 			end else begin
 				rx_state <= MAC_DES;
 			end
@@ -132,6 +136,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		MAC_SRC: begin
 			if ( rx_cnt_mac_src == 3'd5 && s_mac_tvalid ) begin
 				rx_state <= TYPE;
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
+				rx_state <= IDLE;
 			end else begin
 				rx_state <= MAC_SRC;
 			end
@@ -140,6 +146,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			if ( rx_cnt_type && s_mac_tvalid && ( { gmii_rxdata_r, s_mac_tdata } == 16'h0806 ) ) begin
 				rx_state <= ARP_TYPE;
 			end else if ( rx_cnt_type && s_mac_tvalid ) begin
+				rx_state <= IDLE;
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
 				rx_state <= IDLE;
 			end else begin
 				rx_state <= TYPE;
@@ -150,6 +158,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				rx_state <= ARP_OPCODE;
 			end else if ( rx_cnt_arp_type >= 3'd6 ) begin
 				rx_state <= IDLE;
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
+				rx_state <= IDLE;
 			end else begin
 				rx_state <= ARP_TYPE;
 			end
@@ -159,6 +169,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				rx_state <= ARP_SRC_MAC;
 			end else if ( rx_cnt_arp_opcode && s_mac_tvalid ) begin
 				rx_state <= IDLE;
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
+				rx_state <= IDLE;
 			end else begin
 				rx_state <= ARP_OPCODE;
 			end
@@ -166,6 +178,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		ARP_SRC_MAC: begin													// this information has got in MAC_SRC state. ignore it
 			if ( rx_cnt_arp_src_mac >= 3'd5 && s_mac_tvalid ) begin
 				rx_state <= ARP_SRC_IP;
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
+				rx_state <= IDLE;
 			end else begin
 				rx_state <= ARP_SRC_MAC;
 			end
@@ -173,6 +187,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		ARP_SRC_IP: begin
 			if ( rx_cnt_arp_src_ip >= 2'd3 && s_mac_tvalid ) begin
 				rx_state <= ARP_DES_MAC;
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
+				rx_state <= IDLE;
 			end else begin
 				rx_state <= ARP_SRC_IP;
 			end
@@ -180,6 +196,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		ARP_DES_MAC: begin
 			if ( rx_cnt_arp_des_mac >= 3'd5 && s_mac_tvalid ) begin
 				rx_state <= ARP_DES_IP;
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
+				rx_state <= IDLE;
 			end else begin
 				rx_state <= ARP_DES_MAC;
 			end
@@ -187,6 +205,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		ARP_DES_IP: begin
 			if ( rx_cnt_arp_des_ip >= 3'd3 && s_mac_tvalid ) begin
 				rx_state <= ARP_FILL;
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
+				rx_state <= IDLE;
 			end else begin
 				rx_state <= ARP_DES_IP;
 			end
@@ -194,12 +214,16 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		ARP_FILL: begin
 			if ( rx_cnt_arp_fill >= 5'd17 && s_mac_tvalid ) begin
 				rx_state <= CRC;
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
+				rx_state <= IDLE;
 			end else begin
 				rx_state <= ARP_FILL;
 			end
 		end
 		CRC: begin
 			if ( rx_cnt_crc >= 3'd3 && s_mac_tvalid ) begin
+				rx_state <= IDLE;
+			end else if ( !s_mac_tlast ) begin									// frame ends, back to idle
 				rx_state <= IDLE;
 			end else begin
 				rx_state <= CRC;
@@ -1232,7 +1256,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			SFD: begin
 				if ( s_mac_tvalid && s_mac_tdata == 8'hD5 ) begin					// SFD == 'hD5
 					state <= MAC_ADDR;
-				end else if ( s_mac_tvalid ) begin
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
 					state <= UDP_IDLE;
 				end else begin
 					state <= SFD;
@@ -1245,6 +1269,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 					end else begin
 						state <= UDP_IDLE;
 					end
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= MAC_ADDR;
 				end
@@ -1256,6 +1282,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 					end else begin
 						state <= UDP_IDLE;
 					end
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= UDP_TYPE;
 				end
@@ -1267,6 +1295,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 					end else begin
 						state <= UDP_IDLE;
 					end
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= IP_TYPE;
 				end
@@ -1274,6 +1304,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			IP_LEN: begin
 				if ( cnt_ip_len && s_mac_tvalid ) begin
 					state <= IP_ID;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= IP_LEN;
 				end
@@ -1281,6 +1313,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			IP_ID: begin
 				if ( cnt_ip_id && s_mac_tvalid ) begin
 					state <= IP_SPLIT;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= IP_ID;
 				end
@@ -1288,6 +1322,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			IP_SPLIT: begin
 				if ( cnt_ip_split && s_mac_tvalid ) begin
 					state <= IP_TTL;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= IP_SPLIT;
 				end
@@ -1295,6 +1331,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			IP_TTL: begin
 				if ( s_mac_tvalid ) begin
 					state <= IP_PROTOCOL;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= IP_TTL;
 				end
@@ -1304,6 +1342,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 					state <= IP_CHECK;
 				end else if ( s_mac_tvalid ) begin
 					state <= UDP_IDLE;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= IP_PROTOCOL;
 				end
@@ -1311,6 +1351,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			IP_CHECK: begin
 				if ( cnt_ip_check && s_mac_tvalid ) begin
 					state <= IP_ADDR;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= IP_CHECK;
 				end
@@ -1322,6 +1364,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 					state <= DATA;
 				end else if ( cnt_ip_addr >= 3'd7 && s_mac_tvalid ) begin
 					state <= UDP_PORT;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= IP_ADDR;
 				end
@@ -1331,6 +1375,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 					state <= DATA;
 				end else if ( cnt_network >= ip_header_len - 1 && s_mac_tvalid ) begin
 					state <= UDP_PORT;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= IP_ADDR;
 				end
@@ -1340,6 +1386,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 					state <= UDP_IDLE;
 				end else if ( cnt_udp_port >= 2'd3 && s_mac_tvalid ) begin
 					state <= UDP_LEN;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= UDP_PORT;
 				end
@@ -1347,6 +1395,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			UDP_LEN: begin
 				if ( cnt_udp_len && s_mac_tvalid ) begin
 					state <= UDP_CHECK;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= UDP_LEN;
 				end
@@ -1354,6 +1404,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			UDP_CHECK: begin
 				if ( cnt_udp_check && s_mac_tvalid ) begin
 					state <= DATA;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= UDP_CHECK;
 				end
@@ -1363,12 +1415,16 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				if ( cnt_data >= data_len - 16'd1 && s_mac_tvalid && cnt_network >= 'd45 ) begin
 					state <= UDP_CRC;
 					test_count <= test_count +1'b1;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
+					state <= UDP_IDLE;
 				end else begin
 					state <= DATA;
 				end
 			end
 			UDP_CRC: begin
 				if ( cnt_crc >= 2'd3 && s_mac_tvalid ) begin
+					state <= UDP_IDLE;
+				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
 					state <= UDP_IDLE;
 				end else begin
 					state <= UDP_CRC;
