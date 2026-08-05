@@ -47,7 +47,7 @@ eth_axis								u1_eth_axis (
 );
 
 fifo							u2_fifo_2048_d8 (
-	.rstn								( !sys_rst_n	),
+	.rstn								( sys_rst_n		),
 	.clock								( rmii_clk		),
 	.data								( udp_rxdata	),
 	.rdreq								( udp_txreq		),
