@@ -25,7 +25,7 @@ module udp_loop (
 	wire								udp_txreq;
 	wire								udp_txbusy;
 
-eth_rmii								u1_eth_rmii (
+eth_axis								u1_eth_axis (
 	.sys_rst_n							( sys_rst_n		),
 	.rmii_clk							( rmii_clk		),
 	.rmii_rxdv							( rmii_rxdv		),
