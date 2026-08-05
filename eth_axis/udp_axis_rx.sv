@@ -79,7 +79,7 @@ arp_axis #(
 					DATA					= 18'h1_0000,
 					UDP_CRC						= 18'h2_0000;
 	
-	reg		[7:0]							gmii_rxdata_d;
+	reg		[7:0]							s_mac_tdata_d;
 	reg		[17:0]							state;
 	
 	reg		[47:0]							des_mac;
@@ -156,7 +156,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end
 			UDP_TYPE: begin
 				if ( cnt_type && s_mac_tvalid ) begin
-					if ( {gmii_rxdata_d, s_mac_tdata} == 16'h0800 ) begin		// IPv4 only, UDP_TYPE = 'h0800
+					if ( {s_mac_tdata_d, s_mac_tdata} == 16'h0800 ) begin		// IPv4 only, UDP_TYPE = 'h0800
 						state <= IP_TYPE;
 					end else begin
 						state <= UDP_IDLE;
@@ -169,7 +169,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end
 			IP_TYPE: begin
 				if ( cnt_ip_type && s_mac_tvalid ) begin
-					if ( gmii_rxdata_d[7:4] == 'h4 ) begin						// IPv4 only
+					if ( s_mac_tdata_d[7:4] == 'h4 ) begin						// IPv4 only
 						state <= IP_LEN;
 					end else begin
 						state <= UDP_IDLE;
@@ -318,11 +318,11 @@ end
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
-		gmii_rxdata_d <= 8'h0;
+		s_mac_tdata_d <= 8'h0;
 	end else if ( s_mac_tvalid ) begin
-		gmii_rxdata_d <= s_mac_tdata;
+		s_mac_tdata_d <= s_mac_tdata;
 	end else begin
-		gmii_rxdata_d <= gmii_rxdata_d;
+		s_mac_tdata_d <= s_mac_tdata_d;
 	end
 end
 
