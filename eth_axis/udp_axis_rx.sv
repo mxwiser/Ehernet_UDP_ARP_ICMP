@@ -39,7 +39,7 @@ module udp_axis_rx (
 // RX: s_mac_tvalid / s_mac_tdata come from s_axis_rx, tready is ignored (rmii_axis never backpressures RX)
 	wire									s_mac_tvalid;
 	wire		[7:0]						s_mac_tdata	;
-	assign		s_mac_tvalid			=	s_axis_rx.tvalid;
+	assign		s_mac_tvalid			=	s_axis_rx.tvalid; 
 	assign		s_mac_tdata			=	s_axis_rx.tdata;
 	assign		s_axis_rx.tready	=	1'b1;
 
@@ -521,7 +521,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	end
 end
 
-// 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?ARP request crc32 check 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?
+// 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?ARP request crc32 check 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?
 	reg		[7:0]							rx_crc_data;
 	reg										rx_crc_en;
 	reg										rx_crc_end;
@@ -584,7 +584,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		rx_crc32 <= rx_crc32;
 	end
 end
-// 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?ARP request crc32 check 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?
+// 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?ARP request crc32 check 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
@@ -947,7 +947,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	end
 end
 
-// 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?ARP request crc32 check 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?
+// 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?ARP request crc32 check 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?
 	wire									tx_crc_en;
 	wire									tx_crc_end;
 	wire									tx_crc_start;
@@ -979,7 +979,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		tx_crc32 <= tx_crc32;
 	end
 end
-// 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?ARP request crc32 check 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?
+// 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?ARP request crc32 check 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
