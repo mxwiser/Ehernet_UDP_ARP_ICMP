@@ -36,11 +36,11 @@ module udp_axis_rx (
 	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17;				// 169.254.1.23
 
 // -------------------------------- axis <-> gmii bridge ------------------------------------------
-// RX: gmii_rxdv / gmii_rxdata come from s_axis_rx, tready is ignored (rmii_axis never backpressures RX)
-	wire									gmii_rxdv;
-	wire		[7:0]						gmii_rxdata;
-	assign		gmii_rxdv			=	s_axis_rx.tvalid;
-	assign		gmii_rxdata			=	s_axis_rx.tdata;
+// RX: s_mac_tvalid / s_mac_tdata come from s_axis_rx, tready is ignored (rmii_axis never backpressures RX)
+	wire									s_mac_tvalid;
+	wire		[7:0]						s_mac_tdata	;
+	assign		s_mac_tvalid			=	s_axis_rx.tvalid;
+	assign		s_mac_tdata			=	s_axis_rx.tdata;
 	assign		s_axis_rx.tready	=	1'b1;
 
 // TX (ARP reply only): gmii_txen / gmii_txbusy mapped to AXIS handshake.
@@ -105,16 +105,16 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		rx_state <= IDLE;
 	end else case (rx_state)
 		IDLE: begin
-			if ( ( rx_cnt_pre == 3'd6 ) && gmii_rxdv && ( gmii_rxdata == 8'h55 ) ) begin
+			if ( ( rx_cnt_pre == 3'd6 ) && s_mac_tvalid && ( s_mac_tdata == 8'h55 ) ) begin
 				rx_state <= RX_SFD;
 			end else begin
 				rx_state <= IDLE;
 			end
 		end
 		RX_SFD: begin
-			if ( gmii_rxdv && ( gmii_rxdata == 8'hD5 ) ) begin				// when correct SFD (0xD5) is received, jump to next state
+			if ( s_mac_tvalid && ( s_mac_tdata == 8'hD5 ) ) begin				// when correct SFD (0xD5) is received, jump to next state
 				rx_state <= MAC_DES;
-			end else if ( gmii_rxdv ) begin
+			end else if ( s_mac_tvalid ) begin
 				rx_state <= IDLE;
 			end else begin
 				rx_state <= RX_SFD;
@@ -130,16 +130,16 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end
 		end
 		MAC_SRC: begin
-			if ( rx_cnt_mac_src == 3'd5 && gmii_rxdv ) begin
+			if ( rx_cnt_mac_src == 3'd5 && s_mac_tvalid ) begin
 				rx_state <= TYPE;
 			end else begin
 				rx_state <= MAC_SRC;
 			end
 		end
 		TYPE: begin															// only ARP protocol is supported, TYPE = 'h0806
-			if ( rx_cnt_type && gmii_rxdv && ( { gmii_rxdata_r, gmii_rxdata } == 16'h0806 ) ) begin
+			if ( rx_cnt_type && s_mac_tvalid && ( { gmii_rxdata_r, s_mac_tdata } == 16'h0806 ) ) begin
 				rx_state <= ARP_TYPE;
-			end else if ( rx_cnt_type && gmii_rxdv ) begin
+			end else if ( rx_cnt_type && s_mac_tvalid ) begin
 				rx_state <= IDLE;
 			end else begin
 				rx_state <= TYPE;
@@ -155,51 +155,51 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end
 		end
 		ARP_OPCODE: begin													// 1: request, 2: response, detect request
-			if ( rx_cnt_arp_opcode && gmii_rxdv && ( { gmii_rxdata_r, gmii_rxdata } == 16'h0001 ) ) begin
+			if ( rx_cnt_arp_opcode && s_mac_tvalid && ( { gmii_rxdata_r, s_mac_tdata } == 16'h0001 ) ) begin
 				rx_state <= ARP_SRC_MAC;
-			end else if ( rx_cnt_arp_opcode && gmii_rxdv ) begin
+			end else if ( rx_cnt_arp_opcode && s_mac_tvalid ) begin
 				rx_state <= IDLE;
 			end else begin
 				rx_state <= ARP_OPCODE;
 			end
 		end
 		ARP_SRC_MAC: begin													// this information has got in MAC_SRC state. ignore it
-			if ( rx_cnt_arp_src_mac >= 3'd5 && gmii_rxdv ) begin
+			if ( rx_cnt_arp_src_mac >= 3'd5 && s_mac_tvalid ) begin
 				rx_state <= ARP_SRC_IP;
 			end else begin
 				rx_state <= ARP_SRC_MAC;
 			end
 		end
 		ARP_SRC_IP: begin
-			if ( rx_cnt_arp_src_ip >= 2'd3 && gmii_rxdv ) begin
+			if ( rx_cnt_arp_src_ip >= 2'd3 && s_mac_tvalid ) begin
 				rx_state <= ARP_DES_MAC;
 			end else begin
 				rx_state <= ARP_SRC_IP;
 			end
 		end
 		ARP_DES_MAC: begin
-			if ( rx_cnt_arp_des_mac >= 3'd5 && gmii_rxdv ) begin
+			if ( rx_cnt_arp_des_mac >= 3'd5 && s_mac_tvalid ) begin
 				rx_state <= ARP_DES_IP;
 			end else begin
 				rx_state <= ARP_DES_MAC;
 			end
 		end
 		ARP_DES_IP: begin
-			if ( rx_cnt_arp_des_ip >= 3'd3 && gmii_rxdv ) begin
+			if ( rx_cnt_arp_des_ip >= 3'd3 && s_mac_tvalid ) begin
 				rx_state <= ARP_FILL;
 			end else begin
 				rx_state <= ARP_DES_IP;
 			end
 		end
 		ARP_FILL: begin
-			if ( rx_cnt_arp_fill >= 5'd17 && gmii_rxdv ) begin
+			if ( rx_cnt_arp_fill >= 5'd17 && s_mac_tvalid ) begin
 				rx_state <= CRC;
 			end else begin
 				rx_state <= ARP_FILL;
 			end
 		end
 		CRC: begin
-			if ( rx_cnt_crc >= 3'd3 && gmii_rxdv ) begin
+			if ( rx_cnt_crc >= 3'd3 && s_mac_tvalid ) begin
 				rx_state <= IDLE;
 			end else begin
 				rx_state <= CRC;
@@ -209,11 +209,11 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	endcase
 end
 
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin						// delay of gmii_rxdata
+always @ ( posedge sys_clk or negedge sys_rst_n ) begin						// delay of s_mac_tdata
 	if ( !sys_rst_n ) begin
 		gmii_rxdata_r <= 8'h0;
-	end else if ( gmii_rxdv ) begin
-		gmii_rxdata_r <= gmii_rxdata;
+	end else if ( s_mac_tvalid ) begin
+		gmii_rxdata_r <= s_mac_tdata;
 	end else begin
 		gmii_rxdata_r <= gmii_rxdata_r;
 	end
@@ -223,9 +223,9 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_pre <= 3'd0;
 	end else if ( rx_state == IDLE ) begin									// preamble counter, working in idle state
-		if ( gmii_rxdv && ( gmii_rxdata == 8'h55 ) ) begin					// receive 7 0x55 then jump to SFD
+		if ( s_mac_tvalid && ( s_mac_tdata == 8'h55 ) ) begin					// receive 7 0x55 then jump to SFD
 			rx_cnt_pre <= rx_cnt_pre + 3'd1;
-		end else if ( gmii_rxdv ) begin
+		end else if ( s_mac_tvalid ) begin
 			rx_cnt_pre <= 3'd0;
 		end else begin
 			rx_cnt_pre <= rx_cnt_pre;
@@ -239,7 +239,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_mac_des <= 3'd0;
 	end else if ( rx_state == MAC_DES ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			rx_cnt_mac_des <= rx_cnt_mac_des + 3'd1;
 		end else begin
 			rx_cnt_mac_des <= rx_cnt_mac_des;
@@ -253,18 +253,18 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		mac_des <= 48'h0;
 	end else if ( rx_state == MAC_DES ) begin								// receive 6 byte destination MAC address, when it's broadcast address, jump to next state
-		if ( rx_cnt_mac_des == 3'd0 && gmii_rxdv ) begin
-			mac_des <= { gmii_rxdata, mac_des[39:0] };
-		end else if ( rx_cnt_mac_des == 3'd1 && gmii_rxdv ) begin
-			mac_des <= { mac_des[47:40], gmii_rxdata, mac_des[31:0] };
-		end else if ( rx_cnt_mac_des == 3'd2 && gmii_rxdv ) begin
-			mac_des <= { mac_des[47:32], gmii_rxdata, mac_des[23:0] };
-		end else if ( rx_cnt_mac_des == 3'd3 && gmii_rxdv ) begin
-			mac_des <= { mac_des[47:24], gmii_rxdata, mac_des[15:0] };
-		end else if ( rx_cnt_mac_des == 3'd4 && gmii_rxdv ) begin
-			mac_des <= { mac_des[47:16], gmii_rxdata, mac_des[7:0] };
-		end else if ( rx_cnt_mac_des == 3'd5 && gmii_rxdv ) begin
-			mac_des <= { mac_des[47:8], gmii_rxdata };
+		if ( rx_cnt_mac_des == 3'd0 && s_mac_tvalid ) begin
+			mac_des <= { s_mac_tdata, mac_des[39:0] };
+		end else if ( rx_cnt_mac_des == 3'd1 && s_mac_tvalid ) begin
+			mac_des <= { mac_des[47:40], s_mac_tdata, mac_des[31:0] };
+		end else if ( rx_cnt_mac_des == 3'd2 && s_mac_tvalid ) begin
+			mac_des <= { mac_des[47:32], s_mac_tdata, mac_des[23:0] };
+		end else if ( rx_cnt_mac_des == 3'd3 && s_mac_tvalid ) begin
+			mac_des <= { mac_des[47:24], s_mac_tdata, mac_des[15:0] };
+		end else if ( rx_cnt_mac_des == 3'd4 && s_mac_tvalid ) begin
+			mac_des <= { mac_des[47:16], s_mac_tdata, mac_des[7:0] };
+		end else if ( rx_cnt_mac_des == 3'd5 && s_mac_tvalid ) begin
+			mac_des <= { mac_des[47:8], s_mac_tdata };
 		end else begin
 			mac_des <= mac_des;
 		end
@@ -277,7 +277,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_mac_src <= 3'd0;
 	end else if ( rx_state == MAC_SRC ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			rx_cnt_mac_src <= rx_cnt_mac_src + 3'd1;
 		end else begin
 			rx_cnt_mac_src <= rx_cnt_mac_src;
@@ -291,18 +291,18 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		mac_src <= 48'h0;
 	end else if ( rx_state == MAC_SRC ) begin								// receive 6 byte source MAC address, and save it in mac_src temporary
-		if ( rx_cnt_mac_src == 3'd0 && gmii_rxdv ) begin					// when destination IP address is correct, acknowledge this address
-			mac_src <= { gmii_rxdata, mac_src[39:0] };
-		end else if ( rx_cnt_mac_src == 3'd1 && gmii_rxdv ) begin
-			mac_src <= { mac_src[47:40], gmii_rxdata, mac_src[31:0] };
-		end else if ( rx_cnt_mac_src == 3'd2 && gmii_rxdv ) begin
-			mac_src <= { mac_src[47:32], gmii_rxdata, mac_src[23:0] };
-		end else if ( rx_cnt_mac_src == 3'd3 && gmii_rxdv ) begin
-			mac_src <= { mac_src[47:24], gmii_rxdata, mac_src[15:0] };
-		end else if ( rx_cnt_mac_src == 3'd4 && gmii_rxdv ) begin
-			mac_src <= { mac_src[47:16], gmii_rxdata, mac_src[7:0] };
-		end else if ( rx_cnt_mac_src == 3'd5 && gmii_rxdv ) begin
-			mac_src <= { mac_src[47:8], gmii_rxdata };
+		if ( rx_cnt_mac_src == 3'd0 && s_mac_tvalid ) begin					// when destination IP address is correct, acknowledge this address
+			mac_src <= { s_mac_tdata, mac_src[39:0] };
+		end else if ( rx_cnt_mac_src == 3'd1 && s_mac_tvalid ) begin
+			mac_src <= { mac_src[47:40], s_mac_tdata, mac_src[31:0] };
+		end else if ( rx_cnt_mac_src == 3'd2 && s_mac_tvalid ) begin
+			mac_src <= { mac_src[47:32], s_mac_tdata, mac_src[23:0] };
+		end else if ( rx_cnt_mac_src == 3'd3 && s_mac_tvalid ) begin
+			mac_src <= { mac_src[47:24], s_mac_tdata, mac_src[15:0] };
+		end else if ( rx_cnt_mac_src == 3'd4 && s_mac_tvalid ) begin
+			mac_src <= { mac_src[47:16], s_mac_tdata, mac_src[7:0] };
+		end else if ( rx_cnt_mac_src == 3'd5 && s_mac_tvalid ) begin
+			mac_src <= { mac_src[47:8], s_mac_tdata };
 		end else begin
 			mac_src <= mac_src;
 		end
@@ -315,7 +315,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_type <= 1'b0;
 	end else if ( rx_state == TYPE ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			rx_cnt_type <= ~rx_cnt_type;
 		end else begin
 			rx_cnt_type <= rx_cnt_type;
@@ -329,7 +329,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_arp_type <= 3'd0;
 	end else if ( rx_state == ARP_TYPE ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			rx_cnt_arp_type <= rx_cnt_arp_type + 3'd1;
 		end else begin
 			rx_cnt_arp_type <= rx_cnt_arp_type;
@@ -343,18 +343,18 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		arp_type <= 48'h0;
 	end else if ( rx_state == ARP_TYPE ) begin
-		if ( gmii_rxdv && rx_cnt_arp_type == 3'd0 ) begin					// hardware type, 'h0001 means Ethernet
-			arp_type <= { gmii_rxdata, arp_type[39:0] };
-		end else if ( gmii_rxdv && rx_cnt_arp_type == 3'd1 ) begin
-			arp_type <= { arp_type[47:40], gmii_rxdata, arp_type[31:0] };
-		end else if ( gmii_rxdv && rx_cnt_arp_type == 3'd2 ) begin			// protocol type, 'h0800 means IPv4
-			arp_type <= { arp_type[47:32], gmii_rxdata, arp_type[23:0] };
-		end else if ( gmii_rxdv && rx_cnt_arp_type == 3'd3 ) begin
-			arp_type <= { arp_type[47:24], gmii_rxdata, arp_type[15:0] };
-		end else if ( gmii_rxdv && rx_cnt_arp_type == 3'd4 ) begin			// MAC address length, which must be 6
-			arp_type <= { arp_type[47:16], gmii_rxdata, arp_type[7:0] };
-		end else if ( gmii_rxdv && rx_cnt_arp_type == 3'd5 ) begin			// IP address length, which is 4 in IPv4
-			arp_type <= { arp_type[47:8], gmii_rxdata };
+		if ( s_mac_tvalid && rx_cnt_arp_type == 3'd0 ) begin					// hardware type, 'h0001 means Ethernet
+			arp_type <= { s_mac_tdata, arp_type[39:0] };
+		end else if ( s_mac_tvalid && rx_cnt_arp_type == 3'd1 ) begin
+			arp_type <= { arp_type[47:40], s_mac_tdata, arp_type[31:0] };
+		end else if ( s_mac_tvalid && rx_cnt_arp_type == 3'd2 ) begin			// protocol type, 'h0800 means IPv4
+			arp_type <= { arp_type[47:32], s_mac_tdata, arp_type[23:0] };
+		end else if ( s_mac_tvalid && rx_cnt_arp_type == 3'd3 ) begin
+			arp_type <= { arp_type[47:24], s_mac_tdata, arp_type[15:0] };
+		end else if ( s_mac_tvalid && rx_cnt_arp_type == 3'd4 ) begin			// MAC address length, which must be 6
+			arp_type <= { arp_type[47:16], s_mac_tdata, arp_type[7:0] };
+		end else if ( s_mac_tvalid && rx_cnt_arp_type == 3'd5 ) begin			// IP address length, which is 4 in IPv4
+			arp_type <= { arp_type[47:8], s_mac_tdata };
 		end else begin
 			arp_type <= arp_type;
 		end
@@ -367,7 +367,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_arp_opcode <= 1'b0;
 	end else if ( rx_state == ARP_OPCODE ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			rx_cnt_arp_opcode <= ~rx_cnt_arp_opcode;
 		end else begin
 			rx_cnt_arp_opcode <= rx_cnt_arp_opcode;
@@ -381,7 +381,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_arp_src_mac <= 3'd0;
 	end else if ( rx_state == ARP_SRC_MAC ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			rx_cnt_arp_src_mac <= rx_cnt_arp_src_mac + 3'd1;
 		end else begin
 			rx_cnt_arp_src_mac <= rx_cnt_arp_src_mac;
@@ -395,7 +395,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_arp_src_ip <= 2'd0;
 	end else if ( rx_state == ARP_SRC_IP ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			rx_cnt_arp_src_ip <= rx_cnt_arp_src_ip + 2'd1;
 		end else begin
 			rx_cnt_arp_src_ip <= rx_cnt_arp_src_ip;
@@ -409,14 +409,14 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		ip_src <= 32'h0;
 	end else if ( rx_state == ARP_SRC_IP ) begin							// receive 4 byte source IP address, and save it in ip_src temporary
-		if ( rx_cnt_arp_src_ip == 2'd0 && gmii_rxdv ) begin					// when destination IP address is correct, acknowledge it
-			ip_src <= { gmii_rxdata, ip_src[23:0] };
-		end else if ( rx_cnt_arp_src_ip == 2'd1 && gmii_rxdv ) begin
-			ip_src <= { ip_src[31:24], gmii_rxdata, ip_src[15:0] };
-		end else if ( rx_cnt_arp_src_ip == 2'd2 && gmii_rxdv ) begin
-			ip_src <= { ip_src[31:16], gmii_rxdata, ip_src[7:0] };
-		end else if ( rx_cnt_arp_src_ip == 2'd3 && gmii_rxdv ) begin
-			ip_src <= { ip_src[31:8], gmii_rxdata };
+		if ( rx_cnt_arp_src_ip == 2'd0 && s_mac_tvalid ) begin					// when destination IP address is correct, acknowledge it
+			ip_src <= { s_mac_tdata, ip_src[23:0] };
+		end else if ( rx_cnt_arp_src_ip == 2'd1 && s_mac_tvalid ) begin
+			ip_src <= { ip_src[31:24], s_mac_tdata, ip_src[15:0] };
+		end else if ( rx_cnt_arp_src_ip == 2'd2 && s_mac_tvalid ) begin
+			ip_src <= { ip_src[31:16], s_mac_tdata, ip_src[7:0] };
+		end else if ( rx_cnt_arp_src_ip == 2'd3 && s_mac_tvalid ) begin
+			ip_src <= { ip_src[31:8], s_mac_tdata };
 		end else begin
 			ip_src <= ip_src;
 		end
@@ -429,7 +429,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_arp_des_mac <= 3'd0;
 	end else if ( rx_state == ARP_DES_MAC ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			rx_cnt_arp_des_mac <= rx_cnt_arp_des_mac + 3'd1;
 		end else begin
 			rx_cnt_arp_des_mac <= rx_cnt_arp_des_mac;
@@ -443,7 +443,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_arp_des_ip <= 3'd0;
 	end else if ( rx_state == ARP_DES_IP ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			rx_cnt_arp_des_ip <= rx_cnt_arp_des_ip + 3'd1;
 		end else begin
 			rx_cnt_arp_des_ip <= rx_cnt_arp_des_ip;
@@ -457,14 +457,14 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		ip_des <= 32'h0;
 	end else if ( rx_state == ARP_DES_IP ) begin							// read destination IP
-		if ( rx_cnt_arp_des_ip == 3'd0 && gmii_rxdv ) begin
-			ip_des <= { gmii_rxdata, ip_des[23:0] };
-		end else if ( rx_cnt_arp_des_ip == 3'd1 && gmii_rxdv ) begin
-			ip_des <= { ip_des[31:24], gmii_rxdata, ip_des[15:0] };
-		end else if ( rx_cnt_arp_des_ip == 3'd2 && gmii_rxdv ) begin
-			ip_des <= { ip_des[31:16], gmii_rxdata, ip_des[7:0] };
-		end else if ( rx_cnt_arp_des_ip == 3'd3 && gmii_rxdv ) begin
-			ip_des <= { ip_des[31:8], gmii_rxdata };
+		if ( rx_cnt_arp_des_ip == 3'd0 && s_mac_tvalid ) begin
+			ip_des <= { s_mac_tdata, ip_des[23:0] };
+		end else if ( rx_cnt_arp_des_ip == 3'd1 && s_mac_tvalid ) begin
+			ip_des <= { ip_des[31:24], s_mac_tdata, ip_des[15:0] };
+		end else if ( rx_cnt_arp_des_ip == 3'd2 && s_mac_tvalid ) begin
+			ip_des <= { ip_des[31:16], s_mac_tdata, ip_des[7:0] };
+		end else if ( rx_cnt_arp_des_ip == 3'd3 && s_mac_tvalid ) begin
+			ip_des <= { ip_des[31:8], s_mac_tdata };
 		end else begin
 			ip_des <= ip_des;
 		end
@@ -477,7 +477,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_arp_fill <= 5'd0;
 	end else if ( rx_state == ARP_FILL ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			rx_cnt_arp_fill <= rx_cnt_arp_fill + 5'd1;
 		end else begin
 			rx_cnt_arp_fill <= rx_cnt_arp_fill;
@@ -491,7 +491,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_cnt_crc <= 3'd0;
 	end else if ( rx_state == CRC ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			rx_cnt_crc <= rx_cnt_crc + 3'd1;
 		end else begin
 			rx_cnt_crc <= rx_cnt_crc;
@@ -505,14 +505,14 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_crc32_read <= 32'h0;
 	end else if ( rx_state == CRC ) begin
-		if ( rx_cnt_crc == 3'd0 && gmii_rxdv ) begin
-			rx_crc32_read <= { rx_crc32_read[31:8], gmii_rxdata };
-		end else if ( rx_cnt_crc == 3'd1 && gmii_rxdv ) begin
-			rx_crc32_read <= { rx_crc32_read[31:16], gmii_rxdata, rx_crc32_read[7:0] };
-		end else if ( rx_cnt_crc == 3'd2 && gmii_rxdv ) begin
-			rx_crc32_read <= { rx_crc32_read[31:24], gmii_rxdata, rx_crc32_read[15:0] };
-		end else if ( rx_cnt_crc == 3'd3 && gmii_rxdv ) begin
-			rx_crc32_read <= { gmii_rxdata, rx_crc32_read[23:0] };
+		if ( rx_cnt_crc == 3'd0 && s_mac_tvalid ) begin
+			rx_crc32_read <= { rx_crc32_read[31:8], s_mac_tdata };
+		end else if ( rx_cnt_crc == 3'd1 && s_mac_tvalid ) begin
+			rx_crc32_read <= { rx_crc32_read[31:16], s_mac_tdata, rx_crc32_read[7:0] };
+		end else if ( rx_cnt_crc == 3'd2 && s_mac_tvalid ) begin
+			rx_crc32_read <= { rx_crc32_read[31:24], s_mac_tdata, rx_crc32_read[15:0] };
+		end else if ( rx_cnt_crc == 3'd3 && s_mac_tvalid ) begin
+			rx_crc32_read <= { s_mac_tdata, rx_crc32_read[23:0] };
 		end else begin
 			rx_crc32_read <= rx_crc32_read;
 		end
@@ -521,7 +521,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	end
 end
 
-// 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌 ARP request crc32 check 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌
+// 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?ARP request crc32 check 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?
 	reg		[7:0]							rx_crc_data;
 	reg										rx_crc_en;
 	reg										rx_crc_end;
@@ -544,7 +544,7 @@ CRC32_D8									u1_rx_CRC32_D8 (
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_crc_start <= 1'b0;
-	end else if ( rx_state == MAC_DES && rx_cnt_mac_des == 3'd0 && gmii_rxdv ) begin
+	end else if ( rx_state == MAC_DES && rx_cnt_mac_des == 3'd0 && s_mac_tvalid ) begin
 		rx_crc_start <= 1'b1;
 	end else begin
 		rx_crc_start <= 1'b0;
@@ -554,7 +554,7 @@ end
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		rx_crc_end <= 1'b0;
-	end else if ( rx_state == ARP_FILL && rx_cnt_arp_fill == 5'd17 && gmii_rxdv ) begin
+	end else if ( rx_state == ARP_FILL && rx_cnt_arp_fill == 5'd17 && s_mac_tvalid ) begin
 		rx_crc_end <= 1'b1;
 	end else begin
 		rx_crc_end <= 1'b0;
@@ -567,12 +567,12 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	end else if ( rx_state == IDLE || rx_state == RX_SFD || rx_state == CRC ) begin
 		rx_crc_en <= 1'b0;
 	end else begin
-		rx_crc_en <= gmii_rxdv;
+		rx_crc_en <= s_mac_tvalid;
 	end
 end
 
 always @ ( posedge sys_clk ) begin
-	rx_crc_data <= gmii_rxdata;
+	rx_crc_data <= s_mac_tdata;
 end
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
@@ -584,7 +584,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		rx_crc32 <= rx_crc32;
 	end
 end
-// 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈 ARP request crc32 check 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈
+// 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?ARP request crc32 check 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
@@ -947,7 +947,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	end
 end
 
-// 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌 ARP request crc32 check 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌
+// 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?ARP request crc32 check 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?
 	wire									tx_crc_en;
 	wire									tx_crc_end;
 	wire									tx_crc_start;
@@ -979,7 +979,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		tx_crc32 <= tx_crc32;
 	end
 end
-// 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈 ARP request crc32 check 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈
+// 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?ARP request crc32 check 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
@@ -1223,23 +1223,23 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	end else begin
 		case ( state )
 			UDP_IDLE: begin
-				if ( cnt_pre >= 3'd6 && gmii_rxdv && gmii_rxdata == 8'h55 ) begin
+				if ( cnt_pre >= 3'd6 && s_mac_tvalid && s_mac_tdata == 8'h55 ) begin
 					state <= SFD;
 				end else begin
 					state <= UDP_IDLE;
 				end
 			end
 			SFD: begin
-				if ( gmii_rxdv && gmii_rxdata == 8'hD5 ) begin					// SFD == 'hD5
+				if ( s_mac_tvalid && s_mac_tdata == 8'hD5 ) begin					// SFD == 'hD5
 					state <= MAC_ADDR;
-				end else if ( gmii_rxdv ) begin
+				end else if ( s_mac_tvalid ) begin
 					state <= UDP_IDLE;
 				end else begin
 					state <= SFD;
 				end
 			end
 			MAC_ADDR: begin
-				if ( cnt_mac_addr >= 4'd11 && gmii_rxdv ) begin
+				if ( cnt_mac_addr >= 4'd11 && s_mac_tvalid ) begin
 					if ( des_mac == BOARD_MAC_ADDR ) begin
 						state <= UDP_TYPE;
 					end else begin
@@ -1250,8 +1250,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				end
 			end
 			UDP_TYPE: begin
-				if ( cnt_type && gmii_rxdv ) begin
-					if ( {gmii_rxdata_d, gmii_rxdata} == 16'h0800 ) begin		// IPv4 only, UDP_TYPE = 'h0800
+				if ( cnt_type && s_mac_tvalid ) begin
+					if ( {gmii_rxdata_d, s_mac_tdata} == 16'h0800 ) begin		// IPv4 only, UDP_TYPE = 'h0800
 						state <= IP_TYPE;
 					end else begin
 						state <= UDP_IDLE;
@@ -1261,7 +1261,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				end
 			end
 			IP_TYPE: begin
-				if ( cnt_ip_type && gmii_rxdv ) begin
+				if ( cnt_ip_type && s_mac_tvalid ) begin
 					if ( gmii_rxdata_d[7:4] == 'h4 ) begin						// IPv4 only
 						state <= IP_LEN;
 					end else begin
@@ -1272,64 +1272,64 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				end
 			end
 			IP_LEN: begin
-				if ( cnt_ip_len && gmii_rxdv ) begin
+				if ( cnt_ip_len && s_mac_tvalid ) begin
 					state <= IP_ID;
 				end else begin
 					state <= IP_LEN;
 				end
 			end
 			IP_ID: begin
-				if ( cnt_ip_id && gmii_rxdv ) begin
+				if ( cnt_ip_id && s_mac_tvalid ) begin
 					state <= IP_SPLIT;
 				end else begin
 					state <= IP_ID;
 				end
 			end
 			IP_SPLIT: begin
-				if ( cnt_ip_split && gmii_rxdv ) begin
+				if ( cnt_ip_split && s_mac_tvalid ) begin
 					state <= IP_TTL;
 				end else begin
 					state <= IP_SPLIT;
 				end
 			end
 			IP_TTL: begin
-				if ( gmii_rxdv ) begin
+				if ( s_mac_tvalid ) begin
 					state <= IP_PROTOCOL;
 				end else begin
 					state <= IP_TTL;
 				end
 			end
 			IP_PROTOCOL: begin
-				if ( gmii_rxdv && gmii_rxdata == 8'd17 ) begin					// UDP only
+				if ( s_mac_tvalid && s_mac_tdata == 8'd17 ) begin					// UDP only
 					state <= IP_CHECK;
-				end else if ( gmii_rxdv ) begin
+				end else if ( s_mac_tvalid ) begin
 					state <= UDP_IDLE;
 				end else begin
 					state <= IP_PROTOCOL;
 				end
 			end
 			IP_CHECK: begin
-				if ( cnt_ip_check && gmii_rxdv ) begin
+				if ( cnt_ip_check && s_mac_tvalid ) begin
 					state <= IP_ADDR;
 				end else begin
 					state <= IP_CHECK;
 				end
 			end
 			IP_ADDR: begin
-				if ( cnt_ip_addr >= 3'd7 && gmii_rxdv && udp_continue && cnt_network < ip_header_len - 1 ) begin
+				if ( cnt_ip_addr >= 3'd7 && s_mac_tvalid && udp_continue && cnt_network < ip_header_len - 1 ) begin
 					state <= IP_FILL;
-				end else if ( cnt_ip_addr >= 3'd7 && gmii_rxdv && udp_continue ) begin
+				end else if ( cnt_ip_addr >= 3'd7 && s_mac_tvalid && udp_continue ) begin
 					state <= DATA;
-				end else if ( cnt_ip_addr >= 3'd7 && gmii_rxdv ) begin
+				end else if ( cnt_ip_addr >= 3'd7 && s_mac_tvalid ) begin
 					state <= UDP_PORT;
 				end else begin
 					state <= IP_ADDR;
 				end
 			end
 			IP_FILL: begin
-				if ( cnt_network >= ip_header_len - 1 && gmii_rxdv && udp_continue ) begin
+				if ( cnt_network >= ip_header_len - 1 && s_mac_tvalid && udp_continue ) begin
 					state <= DATA;
-				end else if ( cnt_network >= ip_header_len - 1 && gmii_rxdv ) begin
+				end else if ( cnt_network >= ip_header_len - 1 && s_mac_tvalid ) begin
 					state <= UDP_PORT;
 				end else begin
 					state <= IP_ADDR;
@@ -1338,21 +1338,21 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			UDP_PORT: begin
 				if ( des_ip != BOARD_IP_ADDR ) begin
 					state <= UDP_IDLE;
-				end else if ( cnt_udp_port >= 2'd3 && gmii_rxdv ) begin
+				end else if ( cnt_udp_port >= 2'd3 && s_mac_tvalid ) begin
 					state <= UDP_LEN;
 				end else begin
 					state <= UDP_PORT;
 				end
 			end
 			UDP_LEN: begin
-				if ( cnt_udp_len && gmii_rxdv ) begin
+				if ( cnt_udp_len && s_mac_tvalid ) begin
 					state <= UDP_CHECK;
 				end else begin
 					state <= UDP_LEN;
 				end
 			end
 			UDP_CHECK: begin
-				if ( cnt_udp_check && gmii_rxdv ) begin
+				if ( cnt_udp_check && s_mac_tvalid ) begin
 					state <= DATA;
 				end else begin
 					state <= UDP_CHECK;
@@ -1360,7 +1360,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end
 			DATA: begin
 				//STL鐪嬩簡璁℃暟鍣紝纭疄鏄崱杩欓噷鐘舵€佹満瀵艰嚧姝绘満
-				if ( cnt_data >= data_len - 16'd1 && gmii_rxdv && cnt_network >= 'd45 ) begin
+				if ( cnt_data >= data_len - 16'd1 && s_mac_tvalid && cnt_network >= 'd45 ) begin
 					state <= UDP_CRC;
 					test_count <= test_count +1'b1;
 				end else begin
@@ -1368,7 +1368,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				end
 			end
 			UDP_CRC: begin
-				if ( cnt_crc >= 2'd3 && gmii_rxdv ) begin
+				if ( cnt_crc >= 2'd3 && s_mac_tvalid ) begin
 					state <= UDP_IDLE;
 				end else begin
 					state <= UDP_CRC;
@@ -1384,8 +1384,8 @@ end
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		gmii_rxdata_d <= 8'h0;
-	end else if ( gmii_rxdv ) begin
-		gmii_rxdata_d <= gmii_rxdata;
+	end else if ( s_mac_tvalid ) begin
+		gmii_rxdata_d <= s_mac_tdata;
 	end else begin
 		gmii_rxdata_d <= gmii_rxdata_d;
 	end
@@ -1395,9 +1395,9 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_pre <= 3'd0;
 	end else if ( state == UDP_IDLE ) begin
-		if ( gmii_rxdv && gmii_rxdata == 8'h55 ) begin
+		if ( s_mac_tvalid && s_mac_tdata == 8'h55 ) begin
 			cnt_pre <= cnt_pre + 3'd1;
-		end else if ( gmii_rxdv ) begin
+		end else if ( s_mac_tvalid ) begin
 			cnt_pre <= 3'd0;
 		end else begin
 			cnt_pre <= cnt_pre;
@@ -1411,7 +1411,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_mac_addr <= 4'd0;
 	end else if ( state == MAC_ADDR ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_mac_addr <= cnt_mac_addr + 4'd1;
 		end else begin
 			cnt_mac_addr <= cnt_mac_addr;
@@ -1425,18 +1425,18 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		des_mac <= 48'h0;
 	end else if ( state == MAC_ADDR ) begin
-		if ( cnt_mac_addr == 4'd0 && gmii_rxdv ) begin
-			des_mac <= { gmii_rxdata, des_mac[39:0] };
-		end else if ( cnt_mac_addr == 4'd1 && gmii_rxdv ) begin
-			des_mac <= { des_mac[47:40], gmii_rxdata, des_mac[31:0] };
-		end else if ( cnt_mac_addr == 4'd2 && gmii_rxdv ) begin
-			des_mac <= { des_mac[47:32], gmii_rxdata, des_mac[23:0] };
-		end else if ( cnt_mac_addr == 4'd3 && gmii_rxdv ) begin
-			des_mac <= { des_mac[47:24], gmii_rxdata, des_mac[15:0] };
-		end else if ( cnt_mac_addr == 4'd4 && gmii_rxdv ) begin
-			des_mac <= { des_mac[47:16], gmii_rxdata, des_mac[7:0] };
-		end else if ( cnt_mac_addr == 4'd5 && gmii_rxdv ) begin
-			des_mac <= { des_mac[47:8], gmii_rxdata };
+		if ( cnt_mac_addr == 4'd0 && s_mac_tvalid ) begin
+			des_mac <= { s_mac_tdata, des_mac[39:0] };
+		end else if ( cnt_mac_addr == 4'd1 && s_mac_tvalid ) begin
+			des_mac <= { des_mac[47:40], s_mac_tdata, des_mac[31:0] };
+		end else if ( cnt_mac_addr == 4'd2 && s_mac_tvalid ) begin
+			des_mac <= { des_mac[47:32], s_mac_tdata, des_mac[23:0] };
+		end else if ( cnt_mac_addr == 4'd3 && s_mac_tvalid ) begin
+			des_mac <= { des_mac[47:24], s_mac_tdata, des_mac[15:0] };
+		end else if ( cnt_mac_addr == 4'd4 && s_mac_tvalid ) begin
+			des_mac <= { des_mac[47:16], s_mac_tdata, des_mac[7:0] };
+		end else if ( cnt_mac_addr == 4'd5 && s_mac_tvalid ) begin
+			des_mac <= { des_mac[47:8], s_mac_tdata };
 		end else begin
 			des_mac <= des_mac;
 		end
@@ -1449,18 +1449,18 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		src_mac <= 48'h0;
 	end else if ( state == MAC_ADDR ) begin
-		if ( cnt_mac_addr == 4'd6 && gmii_rxdv ) begin
-			src_mac <= { gmii_rxdata, src_mac[39:0] };
-		end else if ( cnt_mac_addr == 4'd7 && gmii_rxdv ) begin
-			src_mac <= { src_mac[47:40], gmii_rxdata, src_mac[31:0] };
-		end else if ( cnt_mac_addr == 4'd8 && gmii_rxdv ) begin
-			src_mac <= { src_mac[47:32], gmii_rxdata, src_mac[23:0] };
-		end else if ( cnt_mac_addr == 4'd9 && gmii_rxdv ) begin
-			src_mac <= { src_mac[47:24], gmii_rxdata, src_mac[15:0] };
-		end else if ( cnt_mac_addr == 4'd10 && gmii_rxdv ) begin
-			src_mac <= { src_mac[47:16], gmii_rxdata, src_mac[7:0] };
-		end else if ( cnt_mac_addr == 4'd11 && gmii_rxdv ) begin
-			src_mac <= { src_mac[47:8], gmii_rxdata };
+		if ( cnt_mac_addr == 4'd6 && s_mac_tvalid ) begin
+			src_mac <= { s_mac_tdata, src_mac[39:0] };
+		end else if ( cnt_mac_addr == 4'd7 && s_mac_tvalid ) begin
+			src_mac <= { src_mac[47:40], s_mac_tdata, src_mac[31:0] };
+		end else if ( cnt_mac_addr == 4'd8 && s_mac_tvalid ) begin
+			src_mac <= { src_mac[47:32], s_mac_tdata, src_mac[23:0] };
+		end else if ( cnt_mac_addr == 4'd9 && s_mac_tvalid ) begin
+			src_mac <= { src_mac[47:24], s_mac_tdata, src_mac[15:0] };
+		end else if ( cnt_mac_addr == 4'd10 && s_mac_tvalid ) begin
+			src_mac <= { src_mac[47:16], s_mac_tdata, src_mac[7:0] };
+		end else if ( cnt_mac_addr == 4'd11 && s_mac_tvalid ) begin
+			src_mac <= { src_mac[47:8], s_mac_tdata };
 		end else begin
 			src_mac <= src_mac;
 		end
@@ -1473,7 +1473,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_type <= 1'b0;
 	end else if ( state == UDP_TYPE ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_type <= ~cnt_type;
 		end else begin
 			cnt_type <= cnt_type;
@@ -1490,7 +1490,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		cnt_network <= 6'd0;
 	end else if ( cnt_network >= 6'd63 ) begin
 		cnt_network <= 6'd63;
-	end else if ( gmii_rxdv ) begin
+	end else if ( s_mac_tvalid ) begin
 		cnt_network <= cnt_network + 6'd1;
 	end else begin
 		cnt_network <= cnt_network;
@@ -1501,7 +1501,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_ip_type <= 1'b0;
 	end else if ( state == IP_TYPE ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_ip_type <= ~cnt_ip_type;
 		end else begin
 			cnt_ip_type <= cnt_ip_type;
@@ -1514,8 +1514,8 @@ end
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		ip_header_len <= 6'd0;
-	end else if ( state == IP_TYPE && !cnt_ip_type && gmii_rxdv ) begin
-		ip_header_len <= gmii_rxdata[3:0] << 2;
+	end else if ( state == IP_TYPE && !cnt_ip_type && s_mac_tvalid ) begin
+		ip_header_len <= s_mac_tdata[3:0] << 2;
 	end else begin
 		ip_header_len <= ip_header_len;
 	end
@@ -1525,7 +1525,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_ip_len <= 1'b0;
 	end else if ( state == IP_LEN ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_ip_len <= ~cnt_ip_len;
 		end else begin
 			cnt_ip_len <= cnt_ip_len;
@@ -1539,10 +1539,10 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		ip_len <= 16'd0;
 	end else if ( state == IP_LEN ) begin
-		if ( !cnt_ip_len && gmii_rxdv ) begin
-			ip_len <= { gmii_rxdata, ip_len[7:0] };
-		end else if ( gmii_rxdv ) begin
-			ip_len <= { ip_len[15:8], gmii_rxdata };
+		if ( !cnt_ip_len && s_mac_tvalid ) begin
+			ip_len <= { s_mac_tdata, ip_len[7:0] };
+		end else if ( s_mac_tvalid ) begin
+			ip_len <= { ip_len[15:8], s_mac_tdata };
 		end else begin
 			ip_len <= ip_len;
 		end
@@ -1555,7 +1555,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_ip_id <= 1'b0;
 	end else if ( state == IP_ID ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_ip_id <= ~cnt_ip_id;
 		end else begin
 			cnt_ip_id <= cnt_ip_id;
@@ -1569,10 +1569,10 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		id <= 16'd0;
 	end else if ( state == IP_ID ) begin
-		if ( !cnt_ip_id && gmii_rxdv ) begin
-			id <= { gmii_rxdata, id[7:0] };
-		end else if ( gmii_rxdv ) begin
-			id <= { id[15:8], gmii_rxdata };
+		if ( !cnt_ip_id && s_mac_tvalid ) begin
+			id <= { s_mac_tdata, id[7:0] };
+		end else if ( s_mac_tvalid ) begin
+			id <= { id[15:8], s_mac_tdata };
 		end else begin
 			id <= id;
 		end
@@ -1585,7 +1585,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_ip_split <= 1'b0;
 	end else if ( state == IP_SPLIT ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_ip_split <= ~cnt_ip_split;
 		end else begin
 			cnt_ip_split <= cnt_ip_split;
@@ -1598,8 +1598,8 @@ end
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		flags <= 3'h0;
-	end else if ( state == IP_SPLIT && !cnt_ip_split && gmii_rxdv ) begin
-		flags <= gmii_rxdata[7:5];
+	end else if ( state == IP_SPLIT && !cnt_ip_split && s_mac_tvalid ) begin
+		flags <= s_mac_tdata[7:5];
 	end else begin
 		flags <= flags;
 	end
@@ -1609,7 +1609,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_ip_check <= 1'b0;
 	end else if ( state == IP_CHECK ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_ip_check <= ~cnt_ip_check;
 		end else begin
 			cnt_ip_check <= cnt_ip_check;
@@ -1623,7 +1623,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_ip_addr <= 3'd0;
 	end else if ( state == IP_ADDR ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_ip_addr <= cnt_ip_addr + 3'd1;
 		end else begin
 			cnt_ip_addr <= cnt_ip_addr;
@@ -1637,14 +1637,14 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		src_ip <= 32'h0;
 	end else if ( state == IP_ADDR ) begin
-		if ( cnt_ip_addr == 3'd0 && gmii_rxdv ) begin
-			src_ip <= { gmii_rxdata, src_ip[23:0] };
-		end else if ( cnt_ip_addr == 3'd1 && gmii_rxdv ) begin
-			src_ip <= { src_ip[31:24], gmii_rxdata, src_ip[15:0] };
-		end else if ( cnt_ip_addr == 3'd2 && gmii_rxdv ) begin
-			src_ip <= { src_ip[31:16], gmii_rxdata, src_ip[7:0] };
-		end else if ( cnt_ip_addr == 3'd3 && gmii_rxdv ) begin
-			src_ip <= { src_ip[31:8], gmii_rxdata };
+		if ( cnt_ip_addr == 3'd0 && s_mac_tvalid ) begin
+			src_ip <= { s_mac_tdata, src_ip[23:0] };
+		end else if ( cnt_ip_addr == 3'd1 && s_mac_tvalid ) begin
+			src_ip <= { src_ip[31:24], s_mac_tdata, src_ip[15:0] };
+		end else if ( cnt_ip_addr == 3'd2 && s_mac_tvalid ) begin
+			src_ip <= { src_ip[31:16], s_mac_tdata, src_ip[7:0] };
+		end else if ( cnt_ip_addr == 3'd3 && s_mac_tvalid ) begin
+			src_ip <= { src_ip[31:8], s_mac_tdata };
 		end else begin
 			src_ip <= src_ip;
 		end
@@ -1657,14 +1657,14 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		des_ip <= 32'h0;
 	end else if ( state == IP_ADDR ) begin
-		if ( cnt_ip_addr == 3'd4 && gmii_rxdv ) begin
-			des_ip <= { gmii_rxdata, des_ip[23:0] };
-		end else if ( cnt_ip_addr == 3'd5 && gmii_rxdv ) begin
-			des_ip <= { des_ip[31:24], gmii_rxdata, des_ip[15:0] };
-		end else if ( cnt_ip_addr == 3'd6 && gmii_rxdv ) begin
-			des_ip <= { des_ip[31:16], gmii_rxdata, des_ip[7:0] };
-		end else if ( cnt_ip_addr == 3'd7 && gmii_rxdv ) begin
-			des_ip <= { des_ip[31:8], gmii_rxdata };
+		if ( cnt_ip_addr == 3'd4 && s_mac_tvalid ) begin
+			des_ip <= { s_mac_tdata, des_ip[23:0] };
+		end else if ( cnt_ip_addr == 3'd5 && s_mac_tvalid ) begin
+			des_ip <= { des_ip[31:24], s_mac_tdata, des_ip[15:0] };
+		end else if ( cnt_ip_addr == 3'd6 && s_mac_tvalid ) begin
+			des_ip <= { des_ip[31:16], s_mac_tdata, des_ip[7:0] };
+		end else if ( cnt_ip_addr == 3'd7 && s_mac_tvalid ) begin
+			des_ip <= { des_ip[31:8], s_mac_tdata };
 		end else begin
 			des_ip <= des_ip;
 		end
@@ -1677,7 +1677,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_udp_port <= 2'd0;
 	end else if ( state == UDP_PORT ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_udp_port <= cnt_udp_port + 2'd1;
 		end else begin
 			cnt_udp_port <= cnt_udp_port;
@@ -1691,10 +1691,10 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		src_port <= 16'h0;
 	end else if ( state == UDP_PORT ) begin
-		if ( cnt_udp_port == 2'd0 && gmii_rxdv ) begin
-			src_port <= { gmii_rxdata, src_port[7:0] };
-		end else if ( cnt_udp_port == 2'd1 && gmii_rxdv ) begin
-			src_port <= { src_port[15:8], gmii_rxdata } ;
+		if ( cnt_udp_port == 2'd0 && s_mac_tvalid ) begin
+			src_port <= { s_mac_tdata, src_port[7:0] };
+		end else if ( cnt_udp_port == 2'd1 && s_mac_tvalid ) begin
+			src_port <= { src_port[15:8], s_mac_tdata } ;
 		end else begin
 			src_port <= src_port;
 		end
@@ -1707,10 +1707,10 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		des_port <= 16'h0;
 	end else if ( state == UDP_PORT ) begin
-		if ( cnt_udp_port == 2'd0 && gmii_rxdv ) begin
-			des_port <= { gmii_rxdata, des_port[7:0] };
-		end else if ( cnt_udp_port == 2'd1 && gmii_rxdv ) begin
-			des_port <= { des_port[15:8], gmii_rxdata } ;
+		if ( cnt_udp_port == 2'd0 && s_mac_tvalid ) begin
+			des_port <= { s_mac_tdata, des_port[7:0] };
+		end else if ( cnt_udp_port == 2'd1 && s_mac_tvalid ) begin
+			des_port <= { des_port[15:8], s_mac_tdata } ;
 		end else begin
 			des_port <= des_port;
 		end
@@ -1723,7 +1723,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_udp_len <= 1'b0;
 	end else if ( state == UDP_LEN ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_udp_len <= ~cnt_udp_len;
 		end else begin
 			cnt_udp_len <= cnt_udp_len;
@@ -1737,10 +1737,10 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_len <= 16'd0;
 	end else if ( state == UDP_LEN ) begin
-		if ( !cnt_udp_len && gmii_rxdv ) begin
-			udp_len <= { gmii_rxdata, udp_len[7:0] };
-		end else if ( gmii_rxdv ) begin
-			udp_len <= { udp_len[15:8], gmii_rxdata };
+		if ( !cnt_udp_len && s_mac_tvalid ) begin
+			udp_len <= { s_mac_tdata, udp_len[7:0] };
+		end else if ( s_mac_tvalid ) begin
+			udp_len <= { udp_len[15:8], s_mac_tdata };
 		end else begin
 			udp_len <= udp_len;
 		end
@@ -1753,7 +1753,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_udp_check <= 1'b0;
 	end else if ( state == UDP_CHECK ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_udp_check <= ~cnt_udp_check;
 		end else begin
 			cnt_udp_check <= cnt_udp_check;
@@ -1775,7 +1775,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_data <= 16'd0;
 	end else if ( state == DATA || state == UDP_PORT || state == UDP_LEN || state == UDP_CHECK ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_data <= cnt_data + 16'd1;
 		end else begin
 			cnt_data <= cnt_data;
@@ -1789,7 +1789,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_crc <= 2'd0;
 	end else if ( state == UDP_CRC ) begin
-		if ( gmii_rxdv ) begin
+		if ( s_mac_tvalid ) begin
 			cnt_crc <= cnt_crc + 2'd1;
 		end else begin
 			cnt_crc <= cnt_crc;
@@ -1799,7 +1799,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	end
 end
 
-assign		pc_refresh		=	state == UDP_LEN && !cnt_udp_len && gmii_rxdv;
+assign		pc_refresh		=	state == UDP_LEN && !cnt_udp_len && s_mac_tvalid;
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
@@ -1824,7 +1824,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_rxdata <= 8'h0;
 	end else if ( state == DATA ) begin
-		udp_rxdata <= gmii_rxdata;
+		udp_rxdata <= s_mac_tdata;
 	end else begin
 		udp_rxdata <= udp_rxdata;
 	end
@@ -1833,7 +1833,7 @@ end
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_rxstart <= 1'b0;
-	end else if ( !udp_continue && state == DATA && cnt_data == 16'd8 && gmii_rxdv ) begin
+	end else if ( !udp_continue && state == DATA && cnt_data == 16'd8 && s_mac_tvalid ) begin
 		udp_rxstart <= 1'b1;
 	end else begin
 		udp_rxstart <= 1'b0;
@@ -1843,7 +1843,7 @@ end
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_rxend <= 1'b0;
-	end else if ( !flags[0] && state == DATA && cnt_data == data_len - 16'd1 && gmii_rxdv ) begin
+	end else if ( !flags[0] && state == DATA && cnt_data == data_len - 16'd1 && s_mac_tvalid ) begin
 		udp_rxend <= 1'b1;
 	end else begin
 		udp_rxend <= 1'b0;
@@ -1853,7 +1853,7 @@ end
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_rxdv <= 1'b0;
-	end else if ( state == DATA && gmii_rxdv && udp_rxnum < udp_len - 8 ) begin
+	end else if ( state == DATA && s_mac_tvalid && udp_rxnum < udp_len - 8 ) begin
 		udp_rxdv <= 1'b1;
 	end else begin
 		udp_rxdv <= 1'b0;
@@ -1877,7 +1877,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		udp_rxnum <= 16'd1;
 	end else if ( state == UDP_CRC && udp_rxnum >= udp_len - 8 ) begin
 		udp_rxnum <= 16'd0;
-	end else if ( state == DATA && gmii_rxdv && udp_rxnum < udp_len - 8 ) begin
+	end else if ( state == DATA && s_mac_tvalid && udp_rxnum < udp_len - 8 ) begin
 		udp_rxnum <= udp_rxnum + 16'd1;
 	end else begin
 		udp_rxnum <= udp_rxnum;
