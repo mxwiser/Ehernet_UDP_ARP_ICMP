@@ -45,17 +45,17 @@ module udp_axis_rx (
 	assign		s_mac_tdata			=	s_axis_rx.tdata;
 	assign		s_axis_rx.tready	=	1'b1;
 
-// TX (ARP reply only): gmii_txen / gmii_txbusy mapped to AXIS handshake.
-// gmii_txen && !gmii_txbusy  ==  tvalid && tready, so the original FSM body is unchanged
-	wire									gmii_txen;
-	wire									gmii_txbusy;
-	reg			[7:0]						gmii_txdata;
-	assign		gmii_txen			=	( tx_state != IDLE );
-	assign		gmii_txbusy			=	!( gmii_txen && m_axis_arp.tready );
-	assign		m_axis_arp.tvalid	=	gmii_txen;
-	assign		m_axis_arp.tlast	=	gmii_txen;					// frame-level: high in frame, falling edge = frame end
+// TX (ARP reply only): txen / txbusy mapped to AXIS handshake.
+// txen && !txbusy  ==  tvalid && tready, so the original FSM body is unchanged
+	wire									txen;
+	wire									txbusy;
+	reg			[7:0]						txdata;
+	assign		txen			=	( tx_state != IDLE );
+	assign		txbusy			=	!( txen && m_axis_arp.tready );
+	assign		m_axis_arp.tvalid	=	txen;
+	assign		m_axis_arp.tlast	=	txen;					// frame-level: high in frame, falling edge = frame end
 	assign		m_axis_arp.tuser	=	1'b0;
-	assign		m_axis_arp.tdata	=	gmii_txdata;
+	assign		m_axis_arp.tdata	=	txdata;
 
 	reg			[47:0]						arp_pc_mac;					// PC MAC learned by ARP (not exported)
 	reg			[31:0]						arp_pc_ip;					// PC IP learned by ARP (not exported)
@@ -78,7 +78,7 @@ module udp_axis_rx (
 					CRC						= 13'h1000;
 
 // -------------------------------- receive arp request ------------------------------------------
-	reg		[7:0]							gmii_rxdata_r;
+	reg		[7:0]							s_mac_tdata_r;
 	reg		[12:0]							rx_state;
 	reg		[2:0]							rx_cnt_pre;
 	reg		[2:0]							rx_cnt_mac_des;
@@ -143,7 +143,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end
 		end
 		TYPE: begin															// only ARP protocol is supported, TYPE = 'h0806
-			if ( rx_cnt_type && s_mac_tvalid && ( { gmii_rxdata_r, s_mac_tdata } == 16'h0806 ) ) begin
+			if ( rx_cnt_type && s_mac_tvalid && ( { s_mac_tdata_r, s_mac_tdata } == 16'h0806 ) ) begin
 				rx_state <= ARP_TYPE;
 			end else if ( rx_cnt_type && s_mac_tvalid ) begin
 				rx_state <= IDLE;
@@ -165,7 +165,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end
 		end
 		ARP_OPCODE: begin													// 1: request, 2: response, detect request
-			if ( rx_cnt_arp_opcode && s_mac_tvalid && ( { gmii_rxdata_r, s_mac_tdata } == 16'h0001 ) ) begin
+			if ( rx_cnt_arp_opcode && s_mac_tvalid && ( { s_mac_tdata_r, s_mac_tdata } == 16'h0001 ) ) begin
 				rx_state <= ARP_SRC_MAC;
 			end else if ( rx_cnt_arp_opcode && s_mac_tvalid ) begin
 				rx_state <= IDLE;
@@ -235,11 +235,11 @@ end
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin						// delay of s_mac_tdata
 	if ( !sys_rst_n ) begin
-		gmii_rxdata_r <= 8'h0;
+		s_mac_tdata_r <= 8'h0;
 	end else if ( s_mac_tvalid ) begin
-		gmii_rxdata_r <= s_mac_tdata;
+		s_mac_tdata_r <= s_mac_tdata;
 	end else begin
-		gmii_rxdata_r <= gmii_rxdata_r;
+		s_mac_tdata_r <= s_mac_tdata_r;
 	end
 end
 
@@ -692,84 +692,84 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end
 		end
 		TX_PACKAGE_HEAD: begin
-			if ( tx_cnt_package_head >= 3'd7 && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_package_head >= 3'd7 && txen && !txbusy ) begin
 				tx_state <= MAC_DES;
 			end else begin
 				tx_state <= TX_PACKAGE_HEAD;
 			end
 		end
 		MAC_DES: begin
-			if ( tx_cnt_mac_des >= 3'd5 && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_mac_des >= 3'd5 && txen && !txbusy ) begin
 				tx_state <= MAC_SRC;
 			end else begin
 				tx_state <= MAC_DES;
 			end
 		end
 		MAC_SRC: begin
-			if ( tx_cnt_mac_src >= 3'd5 && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_mac_src >= 3'd5 && txen && !txbusy ) begin
 				tx_state <= TYPE;
 			end else begin
 				tx_state <= MAC_SRC;
 			end
 		end
 		TYPE: begin
-			if ( tx_cnt_type && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_type && txen && !txbusy ) begin
 				tx_state <= ARP_TYPE;
 			end else begin
 				tx_state <= TYPE;
 			end
 		end
 		ARP_TYPE: begin
-			if ( tx_cnt_arp_type >= 3'd5 && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_arp_type >= 3'd5 && txen && !txbusy ) begin
 				tx_state <= ARP_OPCODE;
 			end else begin
 				tx_state <= ARP_TYPE;
 			end
 		end
 		ARP_OPCODE: begin
-			if ( tx_cnt_arp_opcode && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_arp_opcode && txen && !txbusy ) begin
 				tx_state <= ARP_SRC_MAC;
 			end else begin
 				tx_state <= ARP_OPCODE;
 			end
 		end
 		ARP_SRC_MAC: begin
-			if ( tx_cnt_arp_src_mac >= 3'd5 && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_arp_src_mac >= 3'd5 && txen && !txbusy ) begin
 				tx_state <= ARP_SRC_IP;
 			end else begin
 				tx_state <= ARP_SRC_MAC;
 			end
 		end
 		ARP_SRC_IP: begin
-			if ( tx_cnt_arp_src_ip >= 2'd3 && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_arp_src_ip >= 2'd3 && txen && !txbusy ) begin
 				tx_state <= ARP_DES_MAC;
 			end else begin
 				tx_state <= ARP_SRC_IP;
 			end
 		end
 		ARP_DES_MAC: begin
-			if ( tx_cnt_arp_des_mac >= 3'd5 && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_arp_des_mac >= 3'd5 && txen && !txbusy ) begin
 				tx_state <= ARP_DES_IP;
 			end else begin
 				tx_state <= ARP_DES_MAC;
 			end
 		end
 		ARP_DES_IP: begin
-			if ( tx_cnt_arp_des_ip >= 2'd3 && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_arp_des_ip >= 2'd3 && txen && !txbusy ) begin
 				tx_state <= ARP_FILL;
 			end else begin
 				tx_state <= ARP_DES_IP;
 			end
 		end
 		ARP_FILL: begin
-			if ( tx_cnt_arp_fill >= 5'd17 && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_arp_fill >= 5'd17 && txen && !txbusy ) begin
 				tx_state <= CRC;
 			end else begin
 				tx_state <= ARP_FILL;
 			end
 		end
 		CRC: begin
-			if ( tx_cnt_crc >= 2'd3 && gmii_txen && !gmii_txbusy ) begin
+			if ( tx_cnt_crc >= 2'd3 && txen && !txbusy ) begin
 				tx_state <= IDLE;
 			end else begin
 				tx_state <= CRC;
@@ -796,7 +796,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_package_head <= 3'd0;
 	end else if ( tx_state == TX_PACKAGE_HEAD ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_package_head <= tx_cnt_package_head + 3'd1;
 		end else begin
 			tx_cnt_package_head <= tx_cnt_package_head;
@@ -810,7 +810,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_mac_des <= 3'd0;
 	end else if ( tx_state == MAC_DES ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_mac_des <= tx_cnt_mac_des + 3'd1;
 		end else begin
 			tx_cnt_mac_des <= tx_cnt_mac_des;
@@ -824,7 +824,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_mac_src <= 3'd0;
 	end else if ( tx_state == MAC_SRC ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_mac_src <= tx_cnt_mac_src + 3'd1;
 		end else begin
 			tx_cnt_mac_src <= tx_cnt_mac_src;
@@ -838,7 +838,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_type <= 1'b0;
 	end else if ( tx_state == TYPE ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_type <= ~tx_cnt_type;
 		end else begin
 			tx_cnt_type <= tx_cnt_type;
@@ -852,7 +852,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_arp_type <= 3'd0;
 	end else if ( tx_state == ARP_TYPE ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_arp_type <= tx_cnt_arp_type + 3'd1;
 		end else begin
 			tx_cnt_arp_type <= tx_cnt_arp_type;
@@ -866,7 +866,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_arp_opcode <= 1'b0;
 	end else if ( tx_state == ARP_OPCODE ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_arp_opcode <= ~tx_cnt_arp_opcode;
 		end else begin
 			tx_cnt_arp_opcode <= tx_cnt_arp_opcode;
@@ -880,7 +880,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_arp_src_mac <= 3'd0;
 	end else if ( tx_state == ARP_SRC_MAC ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_arp_src_mac <= tx_cnt_arp_src_mac + 3'd1;
 		end else begin
 			tx_cnt_arp_src_mac <= tx_cnt_arp_src_mac;
@@ -894,7 +894,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_arp_src_ip <= 2'd0;
 	end else if ( tx_state == ARP_SRC_IP ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_arp_src_ip <= tx_cnt_arp_src_ip + 2'd1;
 		end else begin
 			tx_cnt_arp_src_ip <= tx_cnt_arp_src_ip;
@@ -908,7 +908,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_arp_des_mac <= 3'd0;
 	end else if ( tx_state == ARP_DES_MAC ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_arp_des_mac <= tx_cnt_arp_des_mac + 3'd1;
 		end else begin
 			tx_cnt_arp_des_mac <= tx_cnt_arp_des_mac;
@@ -922,7 +922,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_arp_des_ip <= 2'd0;
 	end else if ( tx_state == ARP_DES_IP ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_arp_des_ip <= tx_cnt_arp_des_ip + 2'd1;
 		end else begin
 			tx_cnt_arp_des_ip <= tx_cnt_arp_des_ip;
@@ -936,7 +936,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_arp_fill <= 5'd0;
 	end else if ( tx_state == ARP_FILL ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_arp_fill <= tx_cnt_arp_fill + 5'd1;
 		end else begin
 			tx_cnt_arp_fill <= tx_cnt_arp_fill;
@@ -950,7 +950,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		tx_cnt_crc <= 2'd0;
 	end else if ( tx_state == CRC ) begin
-		if ( gmii_txen && !gmii_txbusy ) begin
+		if ( txen && !txbusy ) begin
 			tx_cnt_crc <= tx_cnt_crc + 2'd1;
 		end else begin
 			tx_cnt_crc <= tx_cnt_crc;
@@ -979,14 +979,14 @@ end
 	wire	[31:0]							tx_crc32_temp;
 	reg		[31:0]							tx_crc32;
 
-assign		tx_crc_en		=	( tx_state != IDLE ) && ( tx_state != TX_PACKAGE_HEAD ) && ( tx_state != CRC ) && gmii_txen && !gmii_txbusy;
-assign		tx_crc_start	=	( tx_state == MAC_DES ) && ( tx_cnt_mac_des == 3'd0 ) && gmii_txen && !gmii_txbusy;
-assign		tx_crc_end		=	( tx_state == ARP_FILL ) && ( tx_cnt_arp_fill >= 5'd17 ) && gmii_txen && !gmii_txbusy;
+assign		tx_crc_en		=	( tx_state != IDLE ) && ( tx_state != TX_PACKAGE_HEAD ) && ( tx_state != CRC ) && txen && !txbusy;
+assign		tx_crc_start	=	( tx_state == MAC_DES ) && ( tx_cnt_mac_des == 3'd0 ) && txen && !txbusy;
+assign		tx_crc_end		=	( tx_state == ARP_FILL ) && ( tx_cnt_arp_fill >= 5'd17 ) && txen && !txbusy;
 
 CRC32_D8									u2_tx_CRC32_D8 (
 	.sys_clk								( sys_clk		),
 	.sys_rst_n								( sys_rst_n		),
-	.data									( gmii_txdata	),
+	.data									( txdata	),
 	.crc_start								( tx_crc_start	),
 	.crc_en									( tx_crc_en		),
 	.crc_end								( tx_crc_end	),
@@ -1007,175 +1007,175 @@ end
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
-		gmii_txdata <= 8'h0;
+		txdata <= 8'h0;
 	end else case ( tx_state )
 		IDLE: begin
 			if ( arp_resp ) begin
-				gmii_txdata <= 8'h55;
+				txdata <= 8'h55;
 			end else begin
-				gmii_txdata <= 8'h0;
+				txdata <= 8'h0;
 			end
 		end
 		TX_PACKAGE_HEAD: begin
-			if ( tx_cnt_package_head == 3'd6 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'hD5;
-			end else if ( tx_cnt_package_head == 3'd7 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[47:40];
+			if ( tx_cnt_package_head == 3'd6 && txen && !txbusy ) begin
+				txdata <= 8'hD5;
+			end else if ( tx_cnt_package_head == 3'd7 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[47:40];
 			end else begin
-				gmii_txdata <= gmii_txdata;
+				txdata <= txdata;
 			end
 		end
 		MAC_DES: begin
-			if ( tx_cnt_mac_des == 3'd0 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[39:32];
-			end else if ( tx_cnt_mac_des == 3'd1 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[31:24];
-			end else if ( tx_cnt_mac_des == 3'd2 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[23:16];
-			end else if ( tx_cnt_mac_des == 3'd3 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[15:8];
-			end else if ( tx_cnt_mac_des == 3'd4 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[7:0];
-			end else if ( tx_cnt_mac_des == 3'd5 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[47:40];
+			if ( tx_cnt_mac_des == 3'd0 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[39:32];
+			end else if ( tx_cnt_mac_des == 3'd1 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[31:24];
+			end else if ( tx_cnt_mac_des == 3'd2 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[23:16];
+			end else if ( tx_cnt_mac_des == 3'd3 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[15:8];
+			end else if ( tx_cnt_mac_des == 3'd4 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[7:0];
+			end else if ( tx_cnt_mac_des == 3'd5 && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[47:40];
 			end else begin
-				gmii_txdata <= gmii_txdata;
+				txdata <= txdata;
 			end
 		end
 		MAC_SRC: begin
-			if ( tx_cnt_mac_src == 3'd0 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[39:32];
-			end else if ( tx_cnt_mac_src == 3'd1 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[31:24];
-			end else if ( tx_cnt_mac_src == 3'd2 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[23:16];
-			end else if ( tx_cnt_mac_src == 3'd3 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[15:8];
-			end else if ( tx_cnt_mac_src == 3'd4 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[7:0];
-			end else if ( tx_cnt_mac_src == 3'd5 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h08;
+			if ( tx_cnt_mac_src == 3'd0 && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[39:32];
+			end else if ( tx_cnt_mac_src == 3'd1 && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[31:24];
+			end else if ( tx_cnt_mac_src == 3'd2 && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[23:16];
+			end else if ( tx_cnt_mac_src == 3'd3 && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[15:8];
+			end else if ( tx_cnt_mac_src == 3'd4 && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[7:0];
+			end else if ( tx_cnt_mac_src == 3'd5 && txen && !txbusy ) begin
+				txdata <= 8'h08;
 			end else begin
-				gmii_txdata <= gmii_txdata;
+				txdata <= txdata;
 			end
 		end
 		TYPE: begin
-			if ( !tx_cnt_type && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h06;										// 0806, ARP protocol
-			end else if ( tx_cnt_type && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h00;
+			if ( !tx_cnt_type && txen && !txbusy ) begin
+				txdata <= 8'h06;										// 0806, ARP protocol
+			end else if ( tx_cnt_type && txen && !txbusy ) begin
+				txdata <= 8'h00;
 			end else begin
-				gmii_txdata <= gmii_txdata;
+				txdata <= txdata;
 			end
 		end
 		ARP_TYPE: begin
-			if ( tx_cnt_arp_type == 3'd0 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h01;										// 0001, Ethernet
-			end else if ( tx_cnt_arp_type == 3'd1 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h08;
-			end else if ( tx_cnt_arp_type == 3'd2 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h00;										// 0800, IPv4
-			end else if ( tx_cnt_arp_type == 3'd3 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h06;										// MAC address length
-			end else if ( tx_cnt_arp_type == 3'd4 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h04;										// IP address length
-			end else if ( tx_cnt_arp_type == 3'd5 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h00;
+			if ( tx_cnt_arp_type == 3'd0 && txen && !txbusy ) begin
+				txdata <= 8'h01;										// 0001, Ethernet
+			end else if ( tx_cnt_arp_type == 3'd1 && txen && !txbusy ) begin
+				txdata <= 8'h08;
+			end else if ( tx_cnt_arp_type == 3'd2 && txen && !txbusy ) begin
+				txdata <= 8'h00;										// 0800, IPv4
+			end else if ( tx_cnt_arp_type == 3'd3 && txen && !txbusy ) begin
+				txdata <= 8'h06;										// MAC address length
+			end else if ( tx_cnt_arp_type == 3'd4 && txen && !txbusy ) begin
+				txdata <= 8'h04;										// IP address length
+			end else if ( tx_cnt_arp_type == 3'd5 && txen && !txbusy ) begin
+				txdata <= 8'h00;
 			end else begin
-				gmii_txdata <= gmii_txdata;
+				txdata <= txdata;
 			end
 			
 		end
 		ARP_OPCODE: begin
-			if ( !tx_cnt_arp_opcode && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h02;										// 0002, ARP response
-			end else if ( tx_cnt_arp_opcode && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[47:40];
+			if ( !tx_cnt_arp_opcode && txen && !txbusy ) begin
+				txdata <= 8'h02;										// 0002, ARP response
+			end else if ( tx_cnt_arp_opcode && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[47:40];
 			end else begin
-				gmii_txdata <= gmii_txdata;
+				txdata <= txdata;
 			end
 		end
 		ARP_SRC_MAC: begin
-			if ( tx_cnt_arp_src_mac == 3'd0 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[39:32];
-			end else if ( tx_cnt_arp_src_mac == 3'd1 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[31:24];
-			end else if ( tx_cnt_arp_src_mac == 3'd2 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[23:16];
-			end else if ( tx_cnt_arp_src_mac == 3'd3 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[15:8];
-			end else if ( tx_cnt_arp_src_mac == 3'd4 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[7:0];
-			end else if ( tx_cnt_arp_src_mac == 3'd5 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_IP_ADDR[31:24];
+			if ( tx_cnt_arp_src_mac == 3'd0 && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[39:32];
+			end else if ( tx_cnt_arp_src_mac == 3'd1 && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[31:24];
+			end else if ( tx_cnt_arp_src_mac == 3'd2 && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[23:16];
+			end else if ( tx_cnt_arp_src_mac == 3'd3 && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[15:8];
+			end else if ( tx_cnt_arp_src_mac == 3'd4 && txen && !txbusy ) begin
+				txdata <= BOARD_MAC_ADDR[7:0];
+			end else if ( tx_cnt_arp_src_mac == 3'd5 && txen && !txbusy ) begin
+				txdata <= BOARD_IP_ADDR[31:24];
 			end else begin
-				gmii_txdata <= gmii_txdata;
+				txdata <= txdata;
 			end
 		end
 		ARP_SRC_IP: begin
-			if ( tx_cnt_arp_src_ip == 2'd0 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_IP_ADDR[23:16];
-			end else if ( tx_cnt_arp_src_ip == 2'd1 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_IP_ADDR[15:8];
-			end else if ( tx_cnt_arp_src_ip == 2'd2 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_IP_ADDR[7:0];
-			end else if ( tx_cnt_arp_src_ip == 2'd3 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[47:40];
+			if ( tx_cnt_arp_src_ip == 2'd0 && txen && !txbusy ) begin
+				txdata <= BOARD_IP_ADDR[23:16];
+			end else if ( tx_cnt_arp_src_ip == 2'd1 && txen && !txbusy ) begin
+				txdata <= BOARD_IP_ADDR[15:8];
+			end else if ( tx_cnt_arp_src_ip == 2'd2 && txen && !txbusy ) begin
+				txdata <= BOARD_IP_ADDR[7:0];
+			end else if ( tx_cnt_arp_src_ip == 2'd3 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[47:40];
 			end else begin
 			
 			end
 		end
 		ARP_DES_MAC: begin
-			if ( tx_cnt_arp_des_mac == 3'd0 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[39:32];
-			end else if ( tx_cnt_arp_des_mac == 3'd1 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[31:24];
-			end else if ( tx_cnt_arp_des_mac == 3'd2 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[23:16];
-			end else if ( tx_cnt_arp_des_mac == 3'd3 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[15:8];
-			end else if ( tx_cnt_arp_des_mac == 3'd4 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_mac[7:0];
-			end else if ( tx_cnt_arp_des_mac == 3'd5 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_ip[31:24];
+			if ( tx_cnt_arp_des_mac == 3'd0 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[39:32];
+			end else if ( tx_cnt_arp_des_mac == 3'd1 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[31:24];
+			end else if ( tx_cnt_arp_des_mac == 3'd2 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[23:16];
+			end else if ( tx_cnt_arp_des_mac == 3'd3 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[15:8];
+			end else if ( tx_cnt_arp_des_mac == 3'd4 && txen && !txbusy ) begin
+				txdata <= tx_des_mac[7:0];
+			end else if ( tx_cnt_arp_des_mac == 3'd5 && txen && !txbusy ) begin
+				txdata <= tx_des_ip[31:24];
 			end else begin
-				gmii_txdata <= gmii_txdata;
+				txdata <= txdata;
 			end
 		end
 		ARP_DES_IP: begin
-			if ( tx_cnt_arp_des_ip == 2'd0 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_ip[23:16];
-			end else if ( tx_cnt_arp_des_ip == 2'd1 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_ip[15:8];
-			end else if ( tx_cnt_arp_des_ip == 2'd2 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_des_ip[7:0];
-			end else if ( tx_cnt_arp_des_ip == 2'd3 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h00;										// filled data
+			if ( tx_cnt_arp_des_ip == 2'd0 && txen && !txbusy ) begin
+				txdata <= tx_des_ip[23:16];
+			end else if ( tx_cnt_arp_des_ip == 2'd1 && txen && !txbusy ) begin
+				txdata <= tx_des_ip[15:8];
+			end else if ( tx_cnt_arp_des_ip == 2'd2 && txen && !txbusy ) begin
+				txdata <= tx_des_ip[7:0];
+			end else if ( tx_cnt_arp_des_ip == 2'd3 && txen && !txbusy ) begin
+				txdata <= 8'h00;										// filled data
 			end else begin
-				gmii_txdata <= gmii_txdata;
+				txdata <= txdata;
 			end
 		end
 		ARP_FILL: begin
 			if ( tx_crc32_valid ) begin
-				gmii_txdata <= tx_crc32_temp[7:0];
+				txdata <= tx_crc32_temp[7:0];
 			end else begin
-				gmii_txdata <= gmii_txdata;
+				txdata <= txdata;
 			end
 		end
 		CRC: begin
-			if ( tx_cnt_crc == 3'd0 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_crc32[15:8];
-			end else if ( tx_cnt_crc == 3'd1 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_crc32[23:16];
-			end else if ( tx_cnt_crc == 3'd2 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= tx_crc32[31:24];
-			end else if ( tx_cnt_crc == 3'd3 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= 8'h00;
+			if ( tx_cnt_crc == 3'd0 && txen && !txbusy ) begin
+				txdata <= tx_crc32[15:8];
+			end else if ( tx_cnt_crc == 3'd1 && txen && !txbusy ) begin
+				txdata <= tx_crc32[23:16];
+			end else if ( tx_cnt_crc == 3'd2 && txen && !txbusy ) begin
+				txdata <= tx_crc32[31:24];
+			end else if ( tx_cnt_crc == 3'd3 && txen && !txbusy ) begin
+				txdata <= 8'h00;
 			end else begin
-				gmii_txdata <= gmii_txdata;
+				txdata <= txdata;
 			end
 		end
-		default: gmii_txdata <= 8'h0;
+		default: txdata <= 8'h0;
 	endcase
 end
 
