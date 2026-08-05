@@ -9,7 +9,10 @@
 //				renamed from udp_gmii_tx.v, AXIS version
 // version:		2.0
 
-module udp_axis_tx (
+module udp_axis_tx #(
+	parameter		BOARD_MAC_ADDR			= 48'h00_11_22_33_44_55,     
+	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17			// 169.254.1.23
+)(
 	input	wire							sys_clk,
 	input	wire							sys_rst_n,
 	
@@ -27,8 +30,7 @@ module udp_axis_tx (
 	input	wire	[15:0]					board_port
 );
 
-	parameter		BOARD_MAC_ADDR			= 48'h00_11_22_33_44_55;
-	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17;				// 169.254.1.23
+
 
 // -------------------------------- axis <-> gmii bridge ------------------------------------------
 // gmii_txen && !gmii_txbusy  ==  tvalid && tready, so the original FSM body is unchanged
