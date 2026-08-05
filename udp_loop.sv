@@ -27,7 +27,7 @@ module udp_loop (
 
 
 
-eth_axis								u1_eth_axis (
+udp								u1_udp (
 	.sys_rst_n							( sys_rst_n		),
 	.rmii_clk							( rmii_clk		),
 	.rmii_rxdv							( rmii_rxdv		),

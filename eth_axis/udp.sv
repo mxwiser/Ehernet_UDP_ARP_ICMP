@@ -10,7 +10,7 @@
 //				external ports and function unchanged, udp_loop.sv can use it directly
 // version:		0.1, test ARP function
 
-module eth_axis(
+module udp(
 	input	wire						sys_rst_n,
 	
 	input	wire						rmii_clk,					// 50 MHz, used as system clock in all bottom modules
@@ -26,6 +26,9 @@ module eth_axis(
 	output	wire	[7:0]				udp_rxdata,
 	output	wire	[15:0]				udp_rxamount,				// total amount of data, including all pieces
 	output	wire	[15:0]				udp_rxnum,					// the order of the received data in this package
+
+
+	
 	input	wire						udp_txstart,
 	input	wire	[15:0]				udp_txamount,
 	input	wire	[7:0]				udp_txdata,
