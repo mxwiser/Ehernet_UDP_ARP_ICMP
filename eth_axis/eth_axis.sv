@@ -92,6 +92,7 @@ udp_axis_tx								u_udp_axis_tx (
 
 // -------------------------------- TX arbitration (ARP first, same as eth_rmii) -------------------
 // ARP 应答优先; 若 UDP 帧正在发送则等其发完再切换, 避免 mid-frame 切换导致 rmii_axis 丢弃整帧
+// 两个TX的数据打包模块，一个是UDP_RX里面的ARP_TX打包模块，一个是UDP_TX打包模块。
 	wire								tx_select_arp;
 	assign		tx_select_arp	=	arp_working && !udp_txbusy;
 
