@@ -3,7 +3,7 @@
 // author:		Benjamin SMith
 // create time:	2023/03/17 17:24
 // edit time:	2026/08/05
-// platform:	Cyclone ep4ce10f17i7, 野火 board
+// platform:	Cyclone ep4ce10f17i7, Ұ�� board
 // module:		udp_axis_rx
 // function:	ARP request and response + UDP received data, IPv4 only
 //				merge of eth_arp_gmii.v and udp_gmii_rx.v, AXIS version
@@ -545,7 +545,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	end
 end
 
-// 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?ARP request crc32 check 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?
+// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ARP request crc32 check ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 	reg		[7:0]							rx_crc_data;
 	reg										rx_crc_en;
 	reg										rx_crc_end;
@@ -608,7 +608,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		rx_crc32 <= rx_crc32;
 	end
 end
-// 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?ARP request crc32 check 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?
+// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ARP request crc32 check ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
@@ -971,7 +971,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	end
 end
 
-// 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?ARP request crc32 check 鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯啌鈫撯�?
+// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ARP request crc32 check ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 	wire									tx_crc_en;
 	wire									tx_crc_end;
 	wire									tx_crc_start;
@@ -1003,7 +1003,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		tx_crc32 <= tx_crc32;
 	end
 end
-// 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?ARP request crc32 check 鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔啈鈫戔�?
+// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ARP request crc32 check ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
@@ -1411,7 +1411,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				end
 			end
 			DATA: begin
-				//STL鐪嬩簡璁℃暟鍣紝纭疄鏄崱杩欓噷鐘舵€佹満瀵艰嚧姝绘満
+				//STL看了计数器，确实是卡这里状态机导致死机
 				if ( cnt_data >= data_len - 16'd1 && s_mac_tvalid && cnt_network >= 'd45 ) begin
 					state <= UDP_CRC;
 					test_count <= test_count +1'b1;
