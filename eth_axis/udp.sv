@@ -108,14 +108,18 @@ udp_axis_tx#(
 );
 
 
-//tx fifo in
+//TX ARP BUFFER
+logic arp_data_wrreq;
+logic arp_data_wrdata;
+logic arp_data_rdreq;
+logic arp_data_rddata;
+
+
 fifo#(
-	.DATA_WIDTH('d8),
-	.DEPTH('d1024)
-)udp_tx_fifo_1024_d8(
-
+	.DATA_WIDTH('d16),
+	.DEPTH('d256)
+)udp_tx_arp_head_fifo_1024_d16(
 );
-
 
 
 // -------------------------------- TX arbitration (ARP first, same as eth_rmii) -------------------

@@ -37,6 +37,7 @@ module arp_axis (
 
 // TX (ARP reply only): txen / txbusy mapped to AXIS handshake.
 // txen && !txbusy  ==  tvalid && tready, so the original FSM body is unchanged
+    logic [7:0] arp_head [8:0] = '{8'h08,8'h06,8'h00,8'h01,8'h08,8'h00,8'h06,8'h04,8'h00};
 	wire									txen;
 	wire									txbusy;
 	reg			[7:0]						txdata;
