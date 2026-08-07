@@ -2,7 +2,7 @@
 
 // author:		Benjamin SMith
 // create time:	2023/03/17 17:24
-// edit time:	2026/08/05
+// edit time:	2026/08/07
 // platform:	Cyclone ep4ce10f17i7, board
 // module:		arp_axis
 // function:	ARP request receive and response, IPv4 only
@@ -36,12 +36,16 @@ module arp_axis (
 	assign		s_axis_rx.tready	=	1'b1;
 
 // TX (ARP reply only): txen / txbusy mapped to AXIS handshake.
-// txen && !txbusy  ==  tvalid && tready, so the original FSM body is unchanged
-    logic [7:0] arp_head [8:0] = '{8'h08,8'h06,8'h00,8'h01,8'h08,8'h00,8'h06,8'h04,8'h00};
+// txen && !txbusy  ==  tvalid && tready
+    logic [7:0] arp_head [0:8] = '{8'h08,8'h06,8'h00,8'h01,8'h08,8'h00,8'h06,8'h04,8'h00};
+    logic [7:0] eth_head [0:7] = '{ BOARD_MAC_ADDR[47:40], BOARD_MAC_ADDR[39:32],
+                                    BOARD_MAC_ADDR[31:24], BOARD_MAC_ADDR[23:16],
+                                    BOARD_MAC_ADDR[15:8],  BOARD_MAC_ADDR[7:0],
+                                    8'h08, 8'h06 };                            // src MAC + ethertype 0806
 	wire									txen;
 	wire									txbusy;
-	reg			[7:0]						txdata;
-	assign		txen			=	( tx_state != IDLE );
+	wire		[7:0]						txdata;
+	assign		txen			=	tx_active;
 	assign		txbusy			=	!( txen && m_axis_arp.tready );
 	assign		m_axis_arp.tvalid	=	txen;
 	assign		m_axis_arp.tlast	=	txen;					// frame-level: high in frame, falling edge = frame end
@@ -649,520 +653,91 @@ end
 assign		arp_pc_refresh		=	arp_resp;
 
 // -------------------------------- transform arp response ------------------------------------------
+// ARP reply frame: preamble(7B 0x55 + SFD 0xD5) + eth_head(14B) + arp_head(8B) +
+//                  sender MAC(6B) + sender IP(4B) + target MAC(6B) + target IP(4B) + CRC32(4B)
+// byte index (tx_cnt): 0~7 preamble/SFD, 8~13 dest MAC, 14~19 src MAC, 20~28 arp_head array,
+//                      29 opcode lo (0x02), 30~35 sender MAC, 36~39 sender IP,
+//                      40~45 target MAC, 46~49 target IP, 50~53 CRC32 (MSB first)
+// only the variable fields are replaced from the received request, fixed bytes are looked up
+// from the eth_head / arp_head arrays, CRC32 is computed on the fly while shifting out
 
-	reg		[12:0]							tx_state;
-	reg		[47:0]							tx_des_mac;
-	reg		[31:0]							tx_des_ip;
-	reg		[2:0]							tx_cnt_package_head;
-	reg		[2:0]							tx_cnt_mac_des;
-	reg		[2:0]							tx_cnt_mac_src;
-	reg										tx_cnt_type;
-	reg		[2:0]							tx_cnt_arp_type;
-	reg										tx_cnt_arp_opcode;
-	reg		[2:0]							tx_cnt_arp_src_mac;
-	reg		[1:0]							tx_cnt_arp_src_ip;
-	reg		[2:0]							tx_cnt_arp_des_mac;
-	reg		[1:0]							tx_cnt_arp_des_ip;
-	reg		[4:0]							tx_cnt_arp_fill;
-	reg		[1:0]							tx_cnt_crc;
+	localparam		TX_FRAME_MAX		= 7'd53;							// last byte of the reply (8 preamble + 46 payload)
+	localparam		TX_DATA_START		= 7'd8;								// first byte covered by CRC
+	localparam		TX_DATA_END			= 7'd49;							// last byte covered by CRC
 
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_state <= IDLE;
-	end else case ( tx_state )
-		IDLE: begin
-			if ( arp_resp ) begin
-				tx_state <= TX_PACKAGE_HEAD;
-			end else begin
-				tx_state <= IDLE;
-			end
-		end
-		TX_PACKAGE_HEAD: begin
-			if ( tx_cnt_package_head >= 3'd7 && txen && !txbusy ) begin
-				tx_state <= MAC_DES;
-			end else begin
-				tx_state <= TX_PACKAGE_HEAD;
-			end
-		end
-		MAC_DES: begin
-			if ( tx_cnt_mac_des >= 3'd5 && txen && !txbusy ) begin
-				tx_state <= MAC_SRC;
-			end else begin
-				tx_state <= MAC_DES;
-			end
-		end
-		MAC_SRC: begin
-			if ( tx_cnt_mac_src >= 3'd5 && txen && !txbusy ) begin
-				tx_state <= TYPE;
-			end else begin
-				tx_state <= MAC_SRC;
-			end
-		end
-		TYPE: begin
-			if ( tx_cnt_type && txen && !txbusy ) begin
-				tx_state <= ARP_TYPE;
-			end else begin
-				tx_state <= TYPE;
-			end
-		end
-		ARP_TYPE: begin
-			if ( tx_cnt_arp_type >= 3'd5 && txen && !txbusy ) begin
-				tx_state <= ARP_OPCODE;
-			end else begin
-				tx_state <= ARP_TYPE;
-			end
-		end
-		ARP_OPCODE: begin
-			if ( tx_cnt_arp_opcode && txen && !txbusy ) begin
-				tx_state <= ARP_SRC_MAC;
-			end else begin
-				tx_state <= ARP_OPCODE;
-			end
-		end
-		ARP_SRC_MAC: begin
-			if ( tx_cnt_arp_src_mac >= 3'd5 && txen && !txbusy ) begin
-				tx_state <= ARP_SRC_IP;
-			end else begin
-				tx_state <= ARP_SRC_MAC;
-			end
-		end
-		ARP_SRC_IP: begin
-			if ( tx_cnt_arp_src_ip >= 2'd3 && txen && !txbusy ) begin
-				tx_state <= ARP_DES_MAC;
-			end else begin
-				tx_state <= ARP_SRC_IP;
-			end
-		end
-		ARP_DES_MAC: begin
-			if ( tx_cnt_arp_des_mac >= 3'd5 && txen && !txbusy ) begin
-				tx_state <= ARP_DES_IP;
-			end else begin
-				tx_state <= ARP_DES_MAC;
-			end
-		end
-		ARP_DES_IP: begin
-			if ( tx_cnt_arp_des_ip >= 2'd3 && txen && !txbusy ) begin
-				tx_state <= ARP_FILL;
-			end else begin
-				tx_state <= ARP_DES_IP;
-			end
-		end
-		ARP_FILL: begin
-			if ( tx_cnt_arp_fill >= 5'd17 && txen && !txbusy ) begin
-				tx_state <= CRC;
-			end else begin
-				tx_state <= ARP_FILL;
-			end
-		end
-		CRC: begin
-			if ( tx_cnt_crc >= 2'd3 && txen && !txbusy ) begin
-				tx_state <= IDLE;
-			end else begin
-				tx_state <= CRC;
-			end
-		end
-		default: tx_state <= IDLE;
-	endcase
-end
+	reg									tx_active;
+	reg		[6:0]						tx_cnt;
+	reg		[47:0]						tx_des_mac;
+	reg		[31:0]						tx_des_ip;
+	reg		[31:0]						tx_crc32;
 
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_des_mac <= 48'h0;
-		tx_des_ip <= 32'h0;
-	end else if ( arp_resp ) begin
-		tx_des_mac <= arp_pc_mac;
-		tx_des_ip <= arp_pc_ip;
-	end else begin
-		tx_des_mac <= tx_des_mac;
-		tx_des_ip <= tx_des_ip;
+	wire								tx_handshake		= txen && m_axis_arp.tready;
+
+	function [7:0] arp_reply_byte( input [6:0] cnt );						// byte selection of the reply frame
+		if ( cnt <= 7'd6 ) begin											// preamble 0x55 x7
+			arp_reply_byte = 8'h55;
+		end else if ( cnt == 7'd7 ) begin									// SFD
+			arp_reply_byte = 8'hD5;
+		end else if ( cnt <= 7'd13 ) begin									// dest MAC = arp_pc_mac
+			arp_reply_byte = tx_des_mac[ (47 - 8*(cnt - 7'd8)) -: 8 ];
+		end else if ( cnt <= 7'd19 ) begin									// src MAC = eth_head[0~5]
+			arp_reply_byte = eth_head[ cnt - 7'd14 ];
+		end else if ( cnt <= 7'd28 ) begin									// ethertype + ARP head = arp_head[0~8]
+			arp_reply_byte = arp_head[ cnt - 7'd20 ];
+		end else if ( cnt == 7'd29 ) begin									// ARP opcode = 0x0002 (reply)
+			arp_reply_byte = 8'h02;
+		end else if ( cnt <= 7'd35 ) begin									// sender MAC = BOARD_MAC_ADDR
+			arp_reply_byte = BOARD_MAC_ADDR[ (47 - 8*(cnt - 7'd30)) -: 8 ];
+		end else if ( cnt <= 7'd39 ) begin									// sender IP = BOARD_IP_ADDR
+			arp_reply_byte = BOARD_IP_ADDR[ (31 - 8*(cnt - 7'd36)) -: 8 ];
+		end else if ( cnt <= 7'd45 ) begin									// target MAC = arp_pc_mac
+			arp_reply_byte = tx_des_mac[ (47 - 8*(cnt - 7'd40)) -: 8 ];
+		end else if ( cnt <= 7'd49 ) begin									// target IP = arp_pc_ip
+			arp_reply_byte = tx_des_ip[ (31 - 8*(cnt - 7'd46)) -: 8 ];
+		end else begin														// CRC32, MSB first
+			arp_reply_byte = tx_crc32[ (31 - 8*(cnt - 7'd50)) -: 8 ];
+		end
+	endfunction
+
+	assign		txdata				= arp_reply_byte( tx_cnt );
+	assign		arp_working			= tx_active;
+
+	assign		tx_crc_start		= tx_active && tx_handshake && ( tx_cnt == TX_DATA_START );
+	assign		tx_crc_en			= tx_active && tx_handshake && ( tx_cnt >= TX_DATA_START ) && ( tx_cnt <= TX_DATA_END );
+	assign		tx_crc_end			= tx_active && tx_handshake && ( tx_cnt == TX_DATA_END );
+
+	always @ ( posedge sys_clk or negedge sys_rst_n ) begin					// single counter drives the whole TX
+		if ( !sys_rst_n ) begin
+			tx_active	<= 1'b0;
+			tx_cnt		<= 7'd0;
+			tx_des_mac	<= 48'h0;
+			tx_des_ip	<= 32'h0;
+			tx_crc32	<= 32'h0;
+		end else if ( arp_resp && !tx_active ) begin						// start a new ARP reply
+			tx_active	<= 1'b1;
+			tx_cnt		<= 7'd0;
+			tx_des_mac	<= arp_pc_mac;
+			tx_des_ip	<= arp_pc_ip;
+		end else if ( tx_active && m_axis_arp.tready ) begin
+			tx_crc32	<= ( tx_cnt == TX_DATA_END ) ? tx_crc32_temp : tx_crc32;	// latch final CRC32
+			tx_cnt		<= ( tx_cnt == TX_FRAME_MAX ) ? 7'd0 : tx_cnt + 7'd1;
+			tx_active	<= ( tx_cnt != TX_FRAME_MAX );
+		end
 	end
-end
 
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_package_head <= 3'd0;
-	end else if ( tx_state == TX_PACKAGE_HEAD ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_package_head <= tx_cnt_package_head + 3'd1;
-		end else begin
-			tx_cnt_package_head <= tx_cnt_package_head;
-		end
-	end else begin
-		tx_cnt_package_head <= 3'd0;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_mac_des <= 3'd0;
-	end else if ( tx_state == MAC_DES ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_mac_des <= tx_cnt_mac_des + 3'd1;
-		end else begin
-			tx_cnt_mac_des <= tx_cnt_mac_des;
-		end
-	end else begin
-		tx_cnt_mac_des <= 3'd0;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_mac_src <= 3'd0;
-	end else if ( tx_state == MAC_SRC ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_mac_src <= tx_cnt_mac_src + 3'd1;
-		end else begin
-			tx_cnt_mac_src <= tx_cnt_mac_src;
-		end
-	end else begin
-		tx_cnt_mac_src <= 3'd0;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_type <= 1'b0;
-	end else if ( tx_state == TYPE ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_type <= ~tx_cnt_type;
-		end else begin
-			tx_cnt_type <= tx_cnt_type;
-		end
-	end else begin
-		tx_cnt_type <= 1'b0;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_arp_type <= 3'd0;
-	end else if ( tx_state == ARP_TYPE ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_arp_type <= tx_cnt_arp_type + 3'd1;
-		end else begin
-			tx_cnt_arp_type <= tx_cnt_arp_type;
-		end
-	end else begin
-		tx_cnt_arp_type <= 3'd0;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_arp_opcode <= 1'b0;
-	end else if ( tx_state == ARP_OPCODE ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_arp_opcode <= ~tx_cnt_arp_opcode;
-		end else begin
-			tx_cnt_arp_opcode <= tx_cnt_arp_opcode;
-		end
-	end else begin
-		tx_cnt_arp_opcode <= 1'b0;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_arp_src_mac <= 3'd0;
-	end else if ( tx_state == ARP_SRC_MAC ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_arp_src_mac <= tx_cnt_arp_src_mac + 3'd1;
-		end else begin
-			tx_cnt_arp_src_mac <= tx_cnt_arp_src_mac;
-		end
-	end else begin
-		tx_cnt_arp_src_mac <= 3'd0;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_arp_src_ip <= 2'd0;
-	end else if ( tx_state == ARP_SRC_IP ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_arp_src_ip <= tx_cnt_arp_src_ip + 2'd1;
-		end else begin
-			tx_cnt_arp_src_ip <= tx_cnt_arp_src_ip;
-		end
-	end else begin
-		tx_cnt_arp_src_ip <= 2'd0;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_arp_des_mac <= 3'd0;
-	end else if ( tx_state == ARP_DES_MAC ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_arp_des_mac <= tx_cnt_arp_des_mac + 3'd1;
-		end else begin
-			tx_cnt_arp_des_mac <= tx_cnt_arp_des_mac;
-		end
-	end else begin
-		tx_cnt_arp_des_mac <= 3'd0;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_arp_des_ip <= 2'd0;
-	end else if ( tx_state == ARP_DES_IP ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_arp_des_ip <= tx_cnt_arp_des_ip + 2'd1;
-		end else begin
-			tx_cnt_arp_des_ip <= tx_cnt_arp_des_ip;
-		end
-	end else begin
-		tx_cnt_arp_des_ip <= 2'd0;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_arp_fill <= 5'd0;
-	end else if ( tx_state == ARP_FILL ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_arp_fill <= tx_cnt_arp_fill + 5'd1;
-		end else begin
-			tx_cnt_arp_fill <= tx_cnt_arp_fill;
-		end
-	end else begin
-		tx_cnt_arp_fill <= 5'd0;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_cnt_crc <= 2'd0;
-	end else if ( tx_state == CRC ) begin
-		if ( txen && !txbusy ) begin
-			tx_cnt_crc <= tx_cnt_crc + 2'd1;
-		end else begin
-			tx_cnt_crc <= tx_cnt_crc;
-		end
-	end else begin
-		tx_cnt_crc <= 2'd0;
-	end
-end
-
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		arp_working <= 1'b0;
-	end else if ( tx_state == IDLE ) begin
-		arp_working <= 1'b0;
-	end else begin
-		arp_working <= 1'b1;
-	end
-end
-
-// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ARP request crc32 check ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-	wire									tx_crc_en;
-	wire									tx_crc_end;
-	wire									tx_crc_start;
 	wire									tx_crc32_valid;
 	wire	[31:0]							tx_crc32_temp;
-	reg		[31:0]							tx_crc32;
 
-assign		tx_crc_en		=	( tx_state != IDLE ) && ( tx_state != TX_PACKAGE_HEAD ) && ( tx_state != CRC ) && txen && !txbusy;
-assign		tx_crc_start	=	( tx_state == MAC_DES ) && ( tx_cnt_mac_des == 3'd0 ) && txen && !txbusy;
-assign		tx_crc_end		=	( tx_state == ARP_FILL ) && ( tx_cnt_arp_fill >= 5'd17 ) && txen && !txbusy;
-
-CRC32_D8									u2_tx_CRC32_D8 (
-	.sys_clk								( sys_clk		),
-	.sys_rst_n								( sys_rst_n		),
-	.data									( txdata	),
-	.crc_start								( tx_crc_start	),
-	.crc_en									( tx_crc_en		),
-	.crc_end								( tx_crc_end	),
-	.crc32									( tx_crc32_temp	),
-	.crc32_valid							( tx_crc32_valid)
-);
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		tx_crc32 <= 32'h0;
-	end else if ( tx_crc32_valid ) begin
-		tx_crc32 <= tx_crc32_temp;
-	end else begin
-		tx_crc32 <= tx_crc32;
-	end
-end
-// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ARP request crc32 check ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		txdata <= 8'h0;
-	end else case ( tx_state )
-		IDLE: begin
-			if ( arp_resp ) begin
-				txdata <= 8'h55;
-			end else begin
-				txdata <= 8'h0;
-			end
-		end
-		TX_PACKAGE_HEAD: begin
-			if ( tx_cnt_package_head == 3'd6 && txen && !txbusy ) begin
-				txdata <= 8'hD5;
-			end else if ( tx_cnt_package_head == 3'd7 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[47:40];
-			end else begin
-				txdata <= txdata;
-			end
-		end
-		MAC_DES: begin
-			if ( tx_cnt_mac_des == 3'd0 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[39:32];
-			end else if ( tx_cnt_mac_des == 3'd1 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[31:24];
-			end else if ( tx_cnt_mac_des == 3'd2 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[23:16];
-			end else if ( tx_cnt_mac_des == 3'd3 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[15:8];
-			end else if ( tx_cnt_mac_des == 3'd4 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[7:0];
-			end else if ( tx_cnt_mac_des == 3'd5 && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[47:40];
-			end else begin
-				txdata <= txdata;
-			end
-		end
-		MAC_SRC: begin
-			if ( tx_cnt_mac_src == 3'd0 && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[39:32];
-			end else if ( tx_cnt_mac_src == 3'd1 && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[31:24];
-			end else if ( tx_cnt_mac_src == 3'd2 && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[23:16];
-			end else if ( tx_cnt_mac_src == 3'd3 && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[15:8];
-			end else if ( tx_cnt_mac_src == 3'd4 && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[7:0];
-			end else if ( tx_cnt_mac_src == 3'd5 && txen && !txbusy ) begin
-				txdata <= 8'h08;
-			end else begin
-				txdata <= txdata;
-			end
-		end
-		TYPE: begin
-			if ( !tx_cnt_type && txen && !txbusy ) begin
-				txdata <= 8'h06;										// 0806, ARP protocol
-			end else if ( tx_cnt_type && txen && !txbusy ) begin
-				txdata <= 8'h00;
-			end else begin
-				txdata <= txdata;
-			end
-		end
-		ARP_TYPE: begin
-			if ( tx_cnt_arp_type == 3'd0 && txen && !txbusy ) begin
-				txdata <= 8'h01;										// 0001, Ethernet
-			end else if ( tx_cnt_arp_type == 3'd1 && txen && !txbusy ) begin
-				txdata <= 8'h08;
-			end else if ( tx_cnt_arp_type == 3'd2 && txen && !txbusy ) begin
-				txdata <= 8'h00;										// 0800, IPv4
-			end else if ( tx_cnt_arp_type == 3'd3 && txen && !txbusy ) begin
-				txdata <= 8'h06;										// MAC address length
-			end else if ( tx_cnt_arp_type == 3'd4 && txen && !txbusy ) begin
-				txdata <= 8'h04;										// IP address length
-			end else if ( tx_cnt_arp_type == 3'd5 && txen && !txbusy ) begin
-				txdata <= 8'h00;
-			end else begin
-				txdata <= txdata;
-			end
-			
-		end
-		ARP_OPCODE: begin
-			if ( !tx_cnt_arp_opcode && txen && !txbusy ) begin
-				txdata <= 8'h02;										// 0002, ARP response
-			end else if ( tx_cnt_arp_opcode && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[47:40];
-			end else begin
-				txdata <= txdata;
-			end
-		end
-		ARP_SRC_MAC: begin
-			if ( tx_cnt_arp_src_mac == 3'd0 && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[39:32];
-			end else if ( tx_cnt_arp_src_mac == 3'd1 && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[31:24];
-			end else if ( tx_cnt_arp_src_mac == 3'd2 && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[23:16];
-			end else if ( tx_cnt_arp_src_mac == 3'd3 && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[15:8];
-			end else if ( tx_cnt_arp_src_mac == 3'd4 && txen && !txbusy ) begin
-				txdata <= BOARD_MAC_ADDR[7:0];
-			end else if ( tx_cnt_arp_src_mac == 3'd5 && txen && !txbusy ) begin
-				txdata <= BOARD_IP_ADDR[31:24];
-			end else begin
-				txdata <= txdata;
-			end
-		end
-		ARP_SRC_IP: begin
-			if ( tx_cnt_arp_src_ip == 2'd0 && txen && !txbusy ) begin
-				txdata <= BOARD_IP_ADDR[23:16];
-			end else if ( tx_cnt_arp_src_ip == 2'd1 && txen && !txbusy ) begin
-				txdata <= BOARD_IP_ADDR[15:8];
-			end else if ( tx_cnt_arp_src_ip == 2'd2 && txen && !txbusy ) begin
-				txdata <= BOARD_IP_ADDR[7:0];
-			end else if ( tx_cnt_arp_src_ip == 2'd3 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[47:40];
-			end else begin
-			
-			end
-		end
-		ARP_DES_MAC: begin
-			if ( tx_cnt_arp_des_mac == 3'd0 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[39:32];
-			end else if ( tx_cnt_arp_des_mac == 3'd1 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[31:24];
-			end else if ( tx_cnt_arp_des_mac == 3'd2 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[23:16];
-			end else if ( tx_cnt_arp_des_mac == 3'd3 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[15:8];
-			end else if ( tx_cnt_arp_des_mac == 3'd4 && txen && !txbusy ) begin
-				txdata <= tx_des_mac[7:0];
-			end else if ( tx_cnt_arp_des_mac == 3'd5 && txen && !txbusy ) begin
-				txdata <= tx_des_ip[31:24];
-			end else begin
-				txdata <= txdata;
-			end
-		end
-		ARP_DES_IP: begin
-			if ( tx_cnt_arp_des_ip == 2'd0 && txen && !txbusy ) begin
-				txdata <= tx_des_ip[23:16];
-			end else if ( tx_cnt_arp_des_ip == 2'd1 && txen && !txbusy ) begin
-				txdata <= tx_des_ip[15:8];
-			end else if ( tx_cnt_arp_des_ip == 2'd2 && txen && !txbusy ) begin
-				txdata <= tx_des_ip[7:0];
-			end else if ( tx_cnt_arp_des_ip == 2'd3 && txen && !txbusy ) begin
-				txdata <= 8'h00;										// filled data
-			end else begin
-				txdata <= txdata;
-			end
-		end
-		ARP_FILL: begin
-			if ( tx_crc32_valid ) begin
-				txdata <= tx_crc32_temp[7:0];
-			end else begin
-				txdata <= txdata;
-			end
-		end
-		CRC: begin
-			if ( tx_cnt_crc == 3'd0 && txen && !txbusy ) begin
-				txdata <= tx_crc32[15:8];
-			end else if ( tx_cnt_crc == 3'd1 && txen && !txbusy ) begin
-				txdata <= tx_crc32[23:16];
-			end else if ( tx_cnt_crc == 3'd2 && txen && !txbusy ) begin
-				txdata <= tx_crc32[31:24];
-			end else if ( tx_cnt_crc == 3'd3 && txen && !txbusy ) begin
-				txdata <= 8'h00;
-			end else begin
-				txdata <= txdata;
-			end
-		end
-		default: txdata <= 8'h0;
-	endcase
-end
+	CRC32_D8								u2_tx_CRC32_D8 (
+		.sys_clk							( sys_clk			),
+		.sys_rst_n							( sys_rst_n			),
+		.data								( txdata			),
+		.crc_start							( tx_crc_start		),
+		.crc_en								( tx_crc_en			),
+		.crc_end							( tx_crc_end		),
+		.crc32								( tx_crc32_temp		),
+		.crc32_valid						( tx_crc32_valid	)
+	);
 
 endmodule
+
