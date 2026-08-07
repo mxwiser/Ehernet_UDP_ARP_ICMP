@@ -9,12 +9,12 @@
 //				extracted from udp_axis_rx.sv, AXIS version
 // version:		1.0
 
-module arp_axis (
+module eth_axis (
 	input	wire							sys_clk,
 	input	wire							sys_rst_n,
 	
 	axis.slave								s_axis_rx,				// PHY RX stream from rmii_axis, tlast is frame-level
-	axis.master								m_axis_arp,				// ARP reply TX stream to rmii_axis
+	axis.master								m_axis_tx,				// ARP reply TX stream to rmii_axis
 	output	reg								arp_working,			// ARP reply is being sent, for TX arbitration
 	
 	output	reg		[47:0]					arp_pc_mac,				// PC MAC learned by ARP
@@ -46,11 +46,11 @@ module arp_axis (
 	wire									txbusy;
 	wire		[7:0]						txdata;
 	assign		txen			=	tx_active;
-	assign		txbusy			=	!( txen && m_axis_arp.tready );
-	assign		m_axis_arp.tvalid	=	txen;
-	assign		m_axis_arp.tlast	=	txen;					// frame-level: high in frame, falling edge = frame end
-	assign		m_axis_arp.tuser	=	1'b0;
-	assign		m_axis_arp.tdata	=	txdata;
+	assign		txbusy			=	!( txen && m_axis_tx.tready );
+	assign		m_axis_tx.tvalid	=	txen;
+	assign		m_axis_tx.tlast	=	txen;					// frame-level: high in frame, falling edge = frame end
+	assign		m_axis_tx.tuser	=	1'b0;
+	assign		m_axis_tx.tdata	=	txdata;
 // ================================ ARP part (from eth_arp_gmii.v) ================================
 	localparam		IDLE					= 13'h0001,
 					RX_SFD					= 13'h0002,						// (0xD5)
@@ -671,7 +671,7 @@ assign		arp_pc_refresh		=	arp_resp;
 	reg		[31:0]						tx_des_ip;
 	reg		[31:0]						tx_crc32;
 
-	wire								tx_handshake		= txen && m_axis_arp.tready;
+	wire								tx_handshake		= txen && m_axis_tx.tready;
 
 	function [7:0] arp_reply_byte( input [6:0] cnt );						// byte selection of the reply frame
 		if ( cnt <= 7'd6 ) begin											// preamble 0x55 x7
@@ -718,7 +718,7 @@ assign		arp_pc_refresh		=	arp_resp;
 			tx_cnt		<= 7'd0;
 			tx_des_mac	<= arp_pc_mac;
 			tx_des_ip	<= arp_pc_ip;
-		end else if ( tx_active && m_axis_arp.tready ) begin
+		end else if ( tx_active && m_axis_tx.tready ) begin
 			tx_crc32	<= ( tx_cnt == TX_DATA_END ) ? tx_crc32_temp : tx_crc32;	// latch final CRC32
 			tx_cnt		<= ( tx_cnt == TX_FRAME_MAX ) ? 7'd0 : tx_cnt + 7'd1;
 			tx_active	<= ( tx_cnt != TX_FRAME_MAX );

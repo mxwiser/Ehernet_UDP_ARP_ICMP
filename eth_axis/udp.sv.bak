@@ -75,7 +75,7 @@ udp_axis_rx#(
 	.sys_clk							( rmii_clk			),
 	.sys_rst_n							( sys_rst_n			),
 	.s_axis_rx							( rx_net			),
-	.m_axis_tx							( tx_sys			),
+	.m_axis_arp							( tx_sys			),
 	.arp_working						( arp_working		),
 	.udp_rxstart						( udp_rxstart		),
 	.udp_rxend							( udp_rxend			),

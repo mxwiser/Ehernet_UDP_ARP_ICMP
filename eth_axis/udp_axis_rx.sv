@@ -11,7 +11,7 @@ module udp_axis_rx #(
 	input	wire							sys_rst_n,
 	
 	axis.slave								s_axis_rx,				// PHY RX stream from rmii_axis, tlast is frame-level
-	axis.master								m_axis_arp,				// ARP reply TX stream to rmii_axis
+	axis.master								m_axis_tx,				// ARP reply TX stream to rmii_axis
 	output	reg								arp_working,			// ARP reply is being sent, for TX arbitration
 	
 	output	reg		[31:0]					test_count,
@@ -42,20 +42,20 @@ module udp_axis_rx #(
 	assign		s_axis_rx.tready	=	1'b1;
 
 
-// ================================ ARP part (arp_axis.sv) ================================
-axis s_arp_axis();
-assign s_arp_axis.tdata  =   s_mac_tdata;
-assign s_arp_axis.tvalid =   s_mac_tvalid;
-assign s_arp_axis.tlast  =   s_mac_tlast;
+// ================================ ARP part (eth_axis.sv) ================================
+axis s_eth_axis();
+assign s_eth_axis.tdata  =   s_mac_tdata;
+assign s_eth_axis.tvalid =   s_mac_tvalid;
+assign s_eth_axis.tlast  =   s_mac_tlast;
 
-arp_axis #(
+eth_axis #(
 	.BOARD_MAC_ADDR							( BOARD_MAC_ADDR	),
 	.BOARD_IP_ADDR							( BOARD_IP_ADDR		)
-) u_arp_axis (
+) u_eth_axis (
 	.sys_clk								( sys_clk			),
 	.sys_rst_n								( sys_rst_n			),
-	.s_axis_rx								( s_arp_axis		),
-	.m_axis_arp								( m_axis_arp		),
+	.s_axis_rx								( s_eth_axis		),
+	.m_axis_tx								( m_axis_tx		),
 	.arp_working							( arp_working		),
 	.arp_pc_mac								( 					),
 	.arp_pc_ip								( 					),
