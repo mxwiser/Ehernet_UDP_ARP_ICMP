@@ -40,8 +40,7 @@ always @(posedge clock)
 begin
 
     // write port
-    if(wrreq && !full)
-    begin
+    if(wrreq && !full)begin
         mem[wr_ptr] <= data;
     end
     qd <= mem[rd_ptr];
@@ -63,14 +62,12 @@ begin
         rd_ptr <= 0;
     end else begin
 
-        if(wrreq && !full)
-        begin
+        if(wrreq && !full)begin
             wr_ptr <= (wr_ptr + 1'b1)%DEPTH;
         end
 
 
-        if(rdreq && !empty)
-        begin
+        if(rdreq && !empty)begin
             rd_ptr <= (rd_ptr + 1'b1)%DEPTH;
         end
 
