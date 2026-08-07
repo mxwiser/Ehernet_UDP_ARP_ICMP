@@ -43,9 +43,10 @@ module udp(
 	wire	[15:0]						board_port;
 
 	axis								rx_net();					// PHY RX -> udp_axis_rx
-	axis								tx_arp();					// udp_axis_rx ARP reply
+	axis								tx_sys();					// udp_axis_rx ARP reply
 	axis								tx_udp();					// udp_axis_tx UDP data
 	axis								tx_net();					// muxed TX -> rmii_axis
+	axis								tx_net_fifo();
 
 	
 	parameter		BOARD_MAC_ADDR			= 48'h00_10_22_33_44_55;
@@ -63,7 +64,7 @@ rmii_axis								u_rmii_axis (
 	.rmii_txdata						( rmii_txdata		),
 	.rmii_rst							( rmii_rst			),
 	.m_rmii_rx_axis_net					( rx_net			),
-	.s_rmii_tx_axis_net					( tx_net			)
+	.s_rmii_tx_axis_net					( tx_net_fifo		)
 );
 
 udp_axis_rx#(
@@ -74,7 +75,7 @@ udp_axis_rx#(
 	.sys_clk							( rmii_clk			),
 	.sys_rst_n							( sys_rst_n			),
 	.s_axis_rx							( rx_net			),
-	.m_axis_arp							( tx_arp			),
+	.m_axis_arp							( tx_sys			),
 	.arp_working						( arp_working		),
 	.udp_rxstart						( udp_rxstart		),
 	.udp_rxend							( udp_rxend			),
@@ -88,50 +89,109 @@ udp_axis_rx#(
 	.board_port							( board_port		)
 );
 
-udp_axis_tx#(	
-	.BOARD_IP_ADDR   (BOARD_IP_ADDR),
-	.BOARD_MAC_ADDR  (BOARD_MAC_ADDR)
-)								
-										u_udp_axis_tx (
-	.sys_clk							( rmii_clk			),
-	.sys_rst_n							( sys_rst_n			),
-	.m_axis_tx							( tx_udp			),
-	.udp_txstart						( udp_txstart		),
-	.udp_txamount						( udp_txamount		),
-	.udp_txdata							( udp_txdata		),
-	.udp_txreq							( udp_txreq			),
-	.udp_txbusy							( udp_txbusy		),
-	.pc_mac_addr						( pc_mac_addr		),
-	.pc_ip_addr							( pc_ip_addr		),
-	.pc_port							( pc_port			),
-	.board_port							( board_port		)
-);
+// udp_axis_tx#(	
+// 	.BOARD_IP_ADDR   (BOARD_IP_ADDR),
+// 	.BOARD_MAC_ADDR  (BOARD_MAC_ADDR)
+// )								
+// 										u_udp_axis_tx (
+// 	.sys_clk							( rmii_clk			),
+// 	.sys_rst_n							( sys_rst_n			),
+// 	.m_axis_tx							( tx_udp			),
+// 	.udp_txstart						( udp_txstart		),
+// 	.udp_txamount						( udp_txamount		),
+// 	.udp_txdata							( udp_txdata		),
+// 	.udp_txreq							( udp_txreq			),
+// 	.udp_txbusy							( udp_txbusy		),
+// 	.pc_mac_addr						( pc_mac_addr		),
+// 	.pc_ip_addr							( pc_ip_addr		),
+// 	.pc_port							( pc_port			),
+// 	.board_port							( board_port		)
+// );
 
 
 //TX ARP BUFFER
-logic arp_data_wrreq;
-logic arp_data_wrdata;
-logic arp_data_rdreq;
-logic arp_data_rddata;
 
 
+
+
+logic        sys_frame_end_flag;
+logic [7:0]  sys_data_idx;
+logic [15:0] sys_fifo_data; 
+assign sys_fifo_data = {sys_data_idx,tx_sys.tdata};
+//sys fifo write
+
+always_ff@(posedge rmii_clk or negedge sys_rst_n) begin
+	if(!sys_rst_n) begin
+		sys_data_idx   <= 'b0;
+		sys_frame_end_flag <= 'b0;
+	end else begin
+		if(tx_sys.tlast) begin
+			sys_data_idx <= sys_data_idx +1'b1;
+		end else begin
+			sys_data_idx <='d0;
+			if(sys_data_idx!='d0)begin
+				sys_frame_end_flag <= 'b1;
+			end
+		end
+		if (sys_frame_end_flag) begin
+			sys_frame_end_flag <= 'b0;
+		end
+	end
+end
+
+wire  		 sys_empty;
+reg  	 	 sys_rdreq;
+wire     	 sys_tlast;
+wire[15:0]   sys_q;
+wire[7:0]	 sys_q_idx;
+wire[7:0]	 sys_q_data;
+wire		 sys_q_end;
+assign sys_q_end = (sys_q_idx=='hFF);      
+assign sys_q_idx  = sys_q[15:8];
+assign sys_q_data = sys_q[7:0];
+assign sys_tlast =  sys_q_end ? 0 : sys_rdreq;
+assign tx_net_fifo.tlast  = sys_tlast;
+assign tx_net_fifo.tvalid = sys_tlast;
+assign tx_net_fifo.tdata  = sys_q_data;
 fifo#(
 	.DATA_WIDTH('d16),
-	.DEPTH('d256)
-)udp_tx_arp_head_fifo_1024_d16(
+	.DEPTH('d512)
+)udp_tx_sys_fifo_1024_d16(
+	.clock 		(rmii_clk),
+	.rstn  		(sys_rst_n),
+	.wrreq		(tx_sys.tvalid||sys_frame_end_flag),
+	.data		(sys_frame_end_flag?{8'hFF,8'h00}:sys_fifo_data),
+	.empty		(sys_empty),
+	.rdreq		(sys_rdreq),
+	.q			(sys_q)
 );
+
+always_ff@(posedge rmii_clk or negedge sys_rst_n) begin
+	if(!sys_rst_n) begin
+		sys_rdreq <= 0;
+	end else begin
+		if((!sys_empty)&&tx_net_fifo.tready)
+			sys_rdreq <= 1;
+		else
+			sys_rdreq <= 0;
+		if(sys_q_end)
+			sys_rdreq <= 0;
+		
+	end
+	
+end
 
 
 // -------------------------------- TX arbitration (ARP first, same as eth_rmii) -------------------
 // ARP 应答优先; 若 UDP 帧正在发送则等其发完再切换, 避免 mid-frame 切换导致 rmii_axis 丢弃整帧
 // 两个TX的数据打包模块，一个是UDP_RX里面的ARP_TX打包模块，一个是UDP_TX打包模块。
-	wire						    tx_select_arp;
-	assign		tx_select_arp	=	arp_working && !udp_txbusy;
-	assign		tx_net.tdata	=	tx_select_arp ? tx_arp.tdata	: tx_udp.tdata;
-	assign		tx_net.tvalid	=	tx_select_arp ? tx_arp.tvalid	: tx_udp.tvalid;
-	assign		tx_net.tlast	=	tx_select_arp ? tx_arp.tlast	: tx_udp.tlast;
-	assign		tx_net.tuser	=	tx_select_arp ? tx_arp.tuser	: tx_udp.tuser;
-	assign		tx_arp.tready	=	tx_select_arp ? tx_net.tready	: 1'b0;
-	assign		tx_udp.tready	=	tx_select_arp ? 1'b0			: tx_net.tready;
+	// wire						    tx_select_arp;
+	// assign		tx_select_arp	=	arp_working && !udp_txbusy;
+	// assign		tx_net.tdata	=	tx_select_arp ? tx_arp.tdata	: tx_udp.tdata;
+	// assign		tx_net.tvalid	=	tx_select_arp ? tx_arp.tvalid	: tx_udp.tvalid;
+	// assign		tx_net.tlast	=	tx_select_arp ? tx_arp.tlast	: tx_udp.tlast;
+	// assign		tx_net.tuser	=	tx_select_arp ? tx_arp.tuser	: tx_udp.tuser;
+	// assign		tx_arp.tready	=	tx_select_arp ? tx_net.tready	: 1'b0;
+	// assign		tx_udp.tready	=	tx_select_arp ? 1'b0			: tx_net.tready;
 
 endmodule

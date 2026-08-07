@@ -1,7 +1,7 @@
 `include "axis.svh"
 
 // rmii_axis: RMII PHY(LAN8720A) <-> AXI-Stream 透明转换
-// 数据通路: UDP核 <-> AXIS <-> RMII
+// 数据通路: ETH核 <-> AXIS <-> RMII
 // 帧边界约定(tlast 为电平信号):
 //   tlast 高电平 = 帧开始/帧内, 上升沿 = 帧开始
 //   tlast 低电平 = 帧结束,     下降沿 = 帧结束
@@ -9,7 +9,7 @@
 //     CRS_DV 会先于帧数据结束(尾部剩余数据组), 拉低后进入采样窗口
 //     窗口内 tlast 保持高电平继续拼字节, 确认无剩余数据后才拉低 tlast
 // TX: s_rmii_tx_axis_net 由本模块产生 tready 反压
-// 透传模式: 前导码/SFD/CRC 均由上层负责, 本模块不删减任何数据
+// 透传模式: 前导码/SFD/CRC 均由上层负责
 
 module rmii_axis(
     input   wire            rstn,
@@ -109,6 +109,7 @@ module rmii_axis(
 //=============================================================
 // TX: 8bit 字节 -> 2bit 数据组, 每字节 4 拍发出
 //     帧内数据必须连续, 若 tvalid 中途断流则本帧作废丢弃
+// tready 同一拍读取 tdata
 //=============================================================
     logic       tx_buf_valid;
     logic [1:0] tx_nib_cnt;
