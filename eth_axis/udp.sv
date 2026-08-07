@@ -140,18 +140,17 @@ always_ff@(posedge rmii_clk or negedge sys_rst_n) begin
 end
 
 wire  		 sys_empty;
-reg  	 	 sys_rdreq;
-wire     	 sys_tlast;
+wire  	 	 sys_rdreq;
 wire[15:0]   sys_q;
 wire[7:0]	 sys_q_idx;
 wire[7:0]	 sys_q_data;
 wire		 sys_q_end;
-assign sys_q_end = (sys_q_idx=='hFF);      
+assign sys_q_end  = (sys_q_idx=='hFF);      
 assign sys_q_idx  = sys_q[15:8];
 assign sys_q_data = sys_q[7:0];
-assign sys_tlast =  sys_q_end ? 0 : sys_rdreq;
-assign tx_net_fifo.tlast  = sys_tlast;
-assign tx_net_fifo.tvalid = sys_tlast;
+assign sys_rdreq		= !sys_empty && tx_net_fifo.tready;
+assign tx_net_fifo.tvalid = sys_rdreq && !sys_q_end;
+assign tx_net_fifo.tlast  = !sys_empty && !sys_q_end;
 assign tx_net_fifo.tdata  = sys_q_data;
 fifo#(
 	.DATA_WIDTH('d16),
@@ -166,20 +165,6 @@ fifo#(
 	.q			(sys_q)
 );
 
-always_ff@(posedge rmii_clk or negedge sys_rst_n) begin
-	if(!sys_rst_n) begin
-		sys_rdreq <= 0;
-	end else begin
-		if((!sys_empty)&&tx_net_fifo.tready)
-			sys_rdreq <= 1;
-		else
-			sys_rdreq <= 0;
-		if(sys_q_end)
-			sys_rdreq <= 0;
-		
-	end
-	
-end
 
 
 // -------------------------------- TX arbitration (ARP first, same as eth_rmii) -------------------
