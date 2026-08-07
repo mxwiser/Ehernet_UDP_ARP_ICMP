@@ -119,7 +119,7 @@ logic [7:0]  sys_data_idx;
 logic [15:0] sys_fifo_data; 
 assign sys_fifo_data = {sys_data_idx,tx_sys.tdata};
 //sys fifo write
-
+assign tx_sys.tready = 1'b1;
 always_ff@(posedge rmii_clk or negedge sys_rst_n) begin
 	if(!sys_rst_n) begin
 		sys_data_idx   <= 'b0;
