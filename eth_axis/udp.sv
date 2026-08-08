@@ -109,16 +109,15 @@ udp_axis_rx#(
 // );
 
 
-//TX ARP BUFFER
 
 
-
+//TX SYS BUFFER
 
 logic        sys_frame_end_flag;
 logic [7:0]  sys_data_idx;
 logic [15:0] sys_fifo_data; 
 assign sys_fifo_data = {sys_data_idx,tx_sys.tdata};
-//sys fifo write
+
 assign tx_sys.tready = 1'b1;
 always_ff@(posedge rmii_clk or negedge sys_rst_n) begin
 	if(!sys_rst_n) begin
@@ -167,16 +166,6 @@ fifo#(
 
 
 
-// -------------------------------- TX arbitration (ARP first, same as eth_rmii) -------------------
-// ARP 应答优先; 若 UDP 帧正在发送则等其发完再切换, 避免 mid-frame 切换导致 rmii_axis 丢弃整帧
-// 两个TX的数据打包模块，一个是UDP_RX里面的ARP_TX打包模块，一个是UDP_TX打包模块。
-	// wire						    tx_select_arp;
-	// assign		tx_select_arp	=	arp_working && !udp_txbusy;
-	// assign		tx_net.tdata	=	tx_select_arp ? tx_arp.tdata	: tx_udp.tdata;
-	// assign		tx_net.tvalid	=	tx_select_arp ? tx_arp.tvalid	: tx_udp.tvalid;
-	// assign		tx_net.tlast	=	tx_select_arp ? tx_arp.tlast	: tx_udp.tlast;
-	// assign		tx_net.tuser	=	tx_select_arp ? tx_arp.tuser	: tx_udp.tuser;
-	// assign		tx_arp.tready	=	tx_select_arp ? tx_net.tready	: 1'b0;
-	// assign		tx_udp.tready	=	tx_select_arp ? 1'b0			: tx_net.tready;
+
 
 endmodule
