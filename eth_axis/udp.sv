@@ -50,7 +50,7 @@ module udp(
 
 	
 	parameter		BOARD_MAC_ADDR			= 48'h00_10_22_33_44_55;
-	parameter		BOARD_IP_ADDR			= 32'h0A_FE_01_77;			// 169.254.1.119
+	parameter		BOARD_IP_ADDR			= 32'h0A_0A_01_0A;			// 169.254.1.119
 
 
 
