@@ -156,6 +156,7 @@ fifo#(
 )udp_tx_sys_fifo_512_d9(
 	.clock 		(rmii_clk),
 	.rstn  		(sys_rst_n),
+	.clear 		(1'b0),
 	.wrreq		(tx_sys.tvalid||sys_frame_end_flag),
 	.data		(sys_frame_end_flag?{1'b1,8'h00}:sys_fifo_data),
 	.empty		(sys_empty),

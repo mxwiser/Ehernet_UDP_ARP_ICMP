@@ -54,6 +54,7 @@ fifo#(
 )							u2_fifo_1024_d8 (
 	.rstn								( sys_rst_n		),
 	.clock								( rmii_clk		),
+	.clear								( 1'b0			),
 	.data								( udp_rxdata	),
 	.rdreq								( udp_txreq		),
 	.wrreq								( udp_rxdv		),
