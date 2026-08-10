@@ -36,7 +36,7 @@ module udp(
 	output	wire						udp_txbusy
 );
 
-	wire								arp_working;
+
 	wire	[47:0]						pc_mac_addr;
 	wire	[31:0]						pc_ip_addr;
 	wire	[15:0]						pc_port;
@@ -76,7 +76,6 @@ udp_axis_rx#(
 	.sys_rst_n							( sys_rst_n			),
 	.s_axis_rx							( rx_net			),
 	.m_axis_tx							( tx_sys			),
-	.arp_working						( arp_working		),
 	.udp_rxstart						( udp_rxstart		),
 	.udp_rxend							( udp_rxend			),
 	.udp_rxdv							( udp_rxdv			),
