@@ -46,10 +46,10 @@ module udp(
 	axis								tx_sys();					// udp_axis_rx ARP reply
 	axis								tx_udp();					// udp_axis_tx UDP data
 	axis								tx_net();					// muxed TX -> rmii_axis
-	axis								tx_net_fifo();
+	axis								tx_phy();
 
 	
-	parameter		BOARD_MAC_ADDR			= 48'h00_10_22_33_44_55;
+	parameter		BOARD_MAC_ADDR			= 48'h51_12_22_33_44_55;
 	parameter		BOARD_IP_ADDR			= 32'h0A_0A_01_0A;			// 10.10.1.10
 
 
@@ -64,7 +64,7 @@ rmii_axis								u_rmii_axis (
 	.rmii_txdata						( rmii_txdata		),
 	.rmii_rst							( rmii_rst			),
 	.m_rmii_rx_axis_net					( rx_net			),
-	.s_rmii_tx_axis_net					( tx_net_fifo		)
+	.s_rmii_tx_axis_net					( tx_phy     		)
 );
 
 udp_axis_rx#(
@@ -88,81 +88,37 @@ udp_axis_rx#(
 	.board_port							( board_port		)
 );
 
-// udp_axis_tx#(	
-// 	.BOARD_IP_ADDR   (BOARD_IP_ADDR),
-// 	.BOARD_MAC_ADDR  (BOARD_MAC_ADDR)
-// )								
-// 										u_udp_axis_tx (
-// 	.sys_clk							( rmii_clk			),
-// 	.sys_rst_n							( sys_rst_n			),
-// 	.m_axis_tx							( tx_udp			),
-// 	.udp_txstart						( udp_txstart		),
-// 	.udp_txamount						( udp_txamount		),
-// 	.udp_txdata							( udp_txdata		),
-// 	.udp_txreq							( udp_txreq			),
-// 	.udp_txbusy							( udp_txbusy		),
-// 	.pc_mac_addr						( pc_mac_addr		),
-// 	.pc_ip_addr							( pc_ip_addr		),
-// 	.pc_port							( pc_port			),
-// 	.board_port							( board_port		)
-// );
 
-
-
-
-//TX SYS BUFFER
-
-logic        sys_frame_end_flag;
-logic        sys_data_idx;
-logic [8:0] sys_fifo_data; 
-assign sys_fifo_data = {1'b0,tx_sys.tdata};
-
-assign tx_sys.tready = 1'b1;
-always_ff@(posedge rmii_clk or negedge sys_rst_n) begin
-	if(!sys_rst_n) begin
-		sys_data_idx   <= 'b0;
-		sys_frame_end_flag <= 'b0;
-	end else begin
-		if(tx_sys.tlast) begin
-			sys_data_idx <= 1'b1;
-		end else begin
-			sys_data_idx <='d0;
-			if(sys_data_idx!='d0)begin
-				sys_frame_end_flag <= 'b1;
-			end
-		end
-		if (sys_frame_end_flag) begin
-			sys_frame_end_flag <= 'b0;
-		end
-	end
-end
-
-wire  		 sys_empty;
-wire  	 	 sys_rdreq;
-wire[15:0]   sys_q;
-wire		 sys_q_idx;
-wire[7:0]	 sys_q_data;
-wire		 sys_q_end;
-assign sys_q_end  = (sys_q_idx);      
-assign sys_q_idx  = sys_q[8];
-assign sys_q_data = sys_q[7:0];
-assign sys_rdreq		= !sys_empty && tx_net_fifo.tready;
-assign tx_net_fifo.tvalid = sys_rdreq && !sys_q_end;
-assign tx_net_fifo.tlast  = !sys_empty && !sys_q_end;
-assign tx_net_fifo.tdata  = sys_q_data;
-fifo#(
-	.DATA_WIDTH('d9),
-	.DEPTH('d512)
-)udp_tx_sys_fifo_512_d9(
-	.clock 		(rmii_clk),
-	.rstn  		(sys_rst_n),
-	.clear 		(1'b0),
-	.wrreq		(tx_sys.tvalid||sys_frame_end_flag),
-	.data		(sys_frame_end_flag?{1'b1,8'h00}:sys_fifo_data),
-	.empty		(sys_empty),
-	.rdreq		(sys_rdreq),
-	.q			(sys_q)
+udp_axis_tx#(	
+	.BOARD_IP_ADDR   (BOARD_IP_ADDR),
+	.BOARD_MAC_ADDR  (BOARD_MAC_ADDR)
+)								
+										u_udp_axis_tx (
+	.sys_clk							( rmii_clk			),
+	.sys_rst_n							( sys_rst_n			),
+	.m_axis_tx							( tx_udp			),
+	.udp_txstart						( udp_txstart		),
+	.udp_txamount						( udp_txamount		),
+	.udp_txdata							( udp_txdata		),
+	.udp_txreq							( udp_txreq			),
+	.udp_txbusy							( udp_txbusy		),
+	.pc_mac_addr						( pc_mac_addr		),
+	.pc_ip_addr							( pc_ip_addr		),
+	.pc_port							( pc_port			),
+	.board_port							( board_port		)
 );
+
+
+
+
+tx_fifo_axis u_tx_fifo_axis(
+	.clk	 (rmii_clk),
+	.rstn	 (sys_rst_n),
+	.sys_tx  (tx_sys),
+	.udp_tx	 (tx_udp),
+	.phy_tx  (tx_phy)
+);
+
 
 
 endmodule
