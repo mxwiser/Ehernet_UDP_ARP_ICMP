@@ -8,7 +8,7 @@ Ethernet communication project based on Cyclone IV E (EP4CE10F17C8) + LAN8720A (
 - ARP request receive and reply (learns PC MAC/IP automatically)
 - ICMP echo request receive and echo reply (ping supported)
 - UDP RX/TX; top-level `udp_loop` echoes received UDP data back to PC
-- Frame-level AXI-Stream bus, decoupled from the PHY interface (RMII/MII/GMII)
+- Frame-level AXI-Stream bus, decoupled from the PHY interface (RMII only; MII/GMII bridges are not included and must be implemented by yourself)
 
 ## Directory Structure
 
@@ -22,8 +22,6 @@ Ethernet communication project based on Cyclone IV E (EP4CE10F17C8) + LAN8720A (
 │   ├── udp_axis_tx.sv     UDP transmit framing
 │   ├── tx_fifo_axis.sv    TX frame buffering and arbitration
 │   ├── rmii_axis.sv       RMII PHY <-> AXIS bridge
-│   ├── mii_axis.sv        MII PHY <-> AXIS bridge
-│   ├── gmii_axis.sv       GMII PHY <-> AXIS bridge
 │   ├── fifo.sv            Synchronous FIFO
 │   ├── CRC32_D8.sv        CRC32 (per byte)
 │   └── axis.svh           AXIS interface definition
@@ -45,7 +43,7 @@ Frame boundary convention: AXIS `tlast` is a level signal (high = in frame, fall
 - Project: `ep4ce10.qsf`, top-level `udp_loop`, device EP4CE10F17C8
 - Board IP: 10.10.1.10 (see `BOARD_IP_ADDR` in `eth_axis/udp.sv`)
 - Test: set PC to same subnet (e.g. 10.10.1.x), `ping 10.10.1.10` to verify ICMP/ARP; send UDP via a network tool to see the loopback
-- Switching PHY bridge: replace the `rmii_axis` instance in `udp.sv` with `mii_axis` / `gmii_axis`, and adjust clock/pin constraints accordingly
+- MII / GMII PHY bridges are not provided; implement them yourself following the AXIS conventions above if needed
 
 ---
 
@@ -59,7 +57,7 @@ Frame boundary convention: AXIS `tlast` is a level signal (high = in frame, fall
 - ARP 请求接收与应答(自动学习 PC 的 MAC/IP)
 - ICMP Echo 请求接收与回显回复(支持 `ping`)
 - UDP 接收/发送,`udp_loop` 顶层实现 UDP 数据回环(PC 发包 → 板卡原样返回)
-- 帧级 AXI-Stream 总线,与具体 PHY 接口(RMII/MII/GMII)解耦
+- 帧级 AXI-Stream 总线,与具体 PHY 接口解耦(仅提供 RMII,MII/GMII 转换需自行实现)
 
 ## 目录结构
 
@@ -73,8 +71,6 @@ Frame boundary convention: AXIS `tlast` is a level signal (high = in frame, fall
 │   ├── udp_axis_tx.sv     UDP 发送组帧
 │   ├── tx_fifo_axis.sv    TX 帧缓存与仲裁
 │   ├── rmii_axis.sv       RMII 物理层 <-> AXIS 转换
-│   ├── mii_axis.sv        MII 物理层 <-> AXIS 转换
-│   ├── gmii_axis.sv       GMII 物理层 <-> AXIS 转换
 │   ├── fifo.sv            同步 FIFO
 │   ├── CRC32_D8.sv        CRC32 校验(逐字节)
 │   └── axis.svh           AXIS 接口定义
@@ -96,4 +92,4 @@ LAN8720A <──RMII── rmii_axis <──AXIS──<── tx_fifo_axis <─�
 - 工程: `ep4ce10.qsf`,顶层 `udp_loop`,器件 EP4CE10F17C8
 - 板卡 IP: 10.10.1.10(见 `eth_axis/udp.sv` 的 `BOARD_IP_ADDR`)
 - 测试: PC 配置同网段 IP(如 10.10.1.x),`ping 10.10.1.10` 验证 ICMP/ARP;UDP 助手发包即可回环
-- 切换 MII/GMII 物理层: 在 `udp.sv` 中替换 `rmii_axis` 实例为 `mii_axis` / `gmii_axis`,并相应调整时钟与引脚约束
+- MII/GMII 物理层转换未提供,如需使用请按上述 AXIS 帧约定自行实现
