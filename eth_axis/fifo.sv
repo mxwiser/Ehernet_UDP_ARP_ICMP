@@ -6,6 +6,7 @@ module fifo #(
 (
     input  wire                  clock,
     input  wire                  rstn,
+    input  wire                  clear,          // 同步清空: 复位读写指针(单拍拉高即可)
     input  wire [DATA_WIDTH-1:0] data,
     input  wire                  wrreq,
     input  wire                  rdreq,
@@ -23,7 +24,6 @@ localparam ADDR_WIDTH = $clog2(DEPTH);
 //--------------------------------------------------
 
 reg [DATA_WIDTH-1:0] mem [DEPTH-1:0];
-reg [DATA_WIDTH-1:0] qd;
 
 //--------------------------------------------------
 // pointer
@@ -40,16 +40,15 @@ always @(posedge clock)
 begin
 
     // write port
-    if(wrreq && !full)
-    begin
+    if(wrreq && !full)begin
         mem[wr_ptr] <= data;
     end
-    qd <= mem[rd_ptr];
 
 end
 
+// 读数据直接组合输出(读指针与读数据同拍), 支持背靠背连续读
 always_comb begin 
-    q = (rdreq && !empty) ? qd : 0;
+    q = (rdreq && !empty) ? mem[rd_ptr] : {DATA_WIDTH{1'b0}};
 end
 //--------------------------------------------------
 // pointer control
@@ -61,16 +60,17 @@ begin
     begin
         wr_ptr <= 0;
         rd_ptr <= 0;
+    end else if(clear) begin
+        wr_ptr <= 0;
+        rd_ptr <= 0;
     end else begin
 
-        if(wrreq && !full)
-        begin
+        if(wrreq && !full)begin
             wr_ptr <= (wr_ptr + 1'b1)%DEPTH;
         end
 
 
-        if(rdreq && !empty)
-        begin
+        if(rdreq && !empty)begin
             rd_ptr <= (rd_ptr + 1'b1)%DEPTH;
         end
 
