@@ -87,7 +87,7 @@ end
 //user test
 always @ (posedge rmii_clk) begin
 	if((udp_rxdata=='hA1) &&udp_rxdv)
-		led <= 1;
+		led <= !led;
 end
 
 
