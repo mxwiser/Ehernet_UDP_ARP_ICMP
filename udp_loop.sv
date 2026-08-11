@@ -71,6 +71,8 @@ always @ ( posedge rmii_clk or negedge sys_rst_n ) begin
 	end
 end
 
+
+
 always @ ( posedge rmii_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_txamount <= 16'd0;
@@ -80,5 +82,13 @@ always @ ( posedge rmii_clk or negedge sys_rst_n ) begin
 		udp_txamount <= udp_txamount;
 	end
 end
+
+
+//user test
+always @ (posedge rmii_clk) begin
+	if((udp_rxdata=='hA1) &&udp_rxdv)
+		led <= 1;
+end
+
 
 endmodule
