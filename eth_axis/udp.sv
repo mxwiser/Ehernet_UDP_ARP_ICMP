@@ -12,7 +12,7 @@
 
 module udp(
 	input	wire						sys_rst_n,
-	
+	input   wire                        sys_clk,
 	input	wire						rmii_clk,					// 50 MHz, used as system clock in all bottom modules
 	input	wire						rmii_rxdv,
 	input	wire	[1:0]				rmii_rxdata,
