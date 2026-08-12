@@ -5,6 +5,7 @@
 module udp_loop (
 	input	wire						sys_rst_n,
 	output  logic	[1:0]				led,
+	input	logic                       clk,
 	input	wire						rmii_clk,
 	input	wire					   	rmii_rxdv,
 	input	wire	[1:0]				rmii_rxdata,
@@ -29,6 +30,7 @@ module udp_loop (
 
 udp								u1_udp (
 	.sys_rst_n							( sys_rst_n		),
+	.sys_clk							( clk			),
 	.rmii_clk							( rmii_clk		),
 	.rmii_rxdv							( rmii_rxdv		),
 	.rmii_rxdata						( rmii_rxdata	),
@@ -53,7 +55,7 @@ fifo#(
 	.DEPTH('d1024)
 )							u2_fifo_1024_d8 (
 	.rstn								( sys_rst_n		),
-	.clock								( rmii_clk		),
+	.clock								( clk			),
 	.clear								( 1'b0			),
 	.data								( udp_rxdata	),
 	.rdreq								( udp_txreq		),
@@ -61,7 +63,7 @@ fifo#(
 	.q									( udp_txdata	)
 );
 
-always @ ( posedge rmii_clk or negedge sys_rst_n ) begin
+always @ ( posedge clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_txstart <= 1'b0;
 	end else if ( udp_rxend ) begin
@@ -73,7 +75,7 @@ end
 
 
 
-always @ ( posedge rmii_clk or negedge sys_rst_n ) begin
+always @ ( posedge clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_txamount <= 16'd0;
 	end else if ( udp_rxstart ) begin
@@ -85,7 +87,7 @@ end
 
 
 //user test
-always @ (posedge rmii_clk) begin
+always @ (posedge clk) begin
 	if((udp_rxdata=='hA1) &&udp_rxdv)
 		led <= !led;
 end
