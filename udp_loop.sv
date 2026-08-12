@@ -29,7 +29,7 @@ module udp_loop (
 axis								m_phy_rx();
 axis								s_phy_tx();
 
-rmii_axis								u_rmii_axis (
+phy_rmii_axis							u_phy_rmii_axis (
 	.rstn								( sys_rst_n			),
 	.rmii_clk							( rmii_clk			),
 	.rmii_crs_dv						( rmii_rxdv			),
