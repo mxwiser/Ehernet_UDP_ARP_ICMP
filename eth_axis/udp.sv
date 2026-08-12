@@ -13,12 +13,13 @@
 module udp(
 	input	wire						sys_rst_n,
 	input   wire                        sys_clk,
-	input	wire						rmii_clk,					// 50 MHz, used as system clock in all bottom modules
-	input	wire						rmii_rxdv,
-	input	wire	[1:0]				rmii_rxdata,
-	output	wire						rmii_txen,
-	output	wire	[1:0]				rmii_txdata,
-	output	wire						rmii_rst,
+
+
+	// phy  port
+	axis							    m_phy_rx,
+	axis							    s_phy_tx,
+	input								rx_clk,
+	input								tx_clk,
 	// user port
 	output	wire						udp_rxstart,
 	output	wire						udp_rxend,
@@ -56,24 +57,14 @@ module udp(
 
 
 
-rmii_axis								u_rmii_axis (
-	.rstn								( sys_rst_n			),
-	.rmii_clk							( rmii_clk			),
-	.rmii_crs_dv						( rmii_rxdv			),
-	.rmii_rxdata						( rmii_rxdata		),
-	.rmii_txen							( rmii_txen			),
-	.rmii_txdata						( rmii_txdata		),
-	.rmii_rst							( rmii_rst			),
-	.m_rmii_rx_axis_net					( rx_net			),
-	.s_rmii_tx_axis_net					( tx_phy     		)
-);
+
 
 rx_cdc_fifo_axis u_rx_cdc_fifo_axis(
 	.rstn     (sys_rst_n),
 	.clk  	  (sys_clk),
-	.rmii_clk (rmii_clk),
-	.s_rx (rx_net),
-	.m_rx (rx_net_cdc)
+	.rx_clk   (rx_clk),
+	.s_rx     (m_phy_rx),
+	.m_rx     (rx_net_cdc)
 );
 
 udp_axis_rx#(
@@ -121,11 +112,11 @@ udp_axis_tx#(
 
 tx_cdc_fifo_axis u_tx_cdc_fifo_axis(
 	.clk	 (sys_clk),
-	.rmii_clk(rmii_clk),
+	.tx_clk  (tx_clk),
 	.rstn	 (sys_rst_n),
 	.sys_tx  (tx_sys),
 	.udp_tx	 (tx_udp),
-	.phy_tx  (tx_phy)
+	.phy_tx  (s_phy_tx)
 );
 
 

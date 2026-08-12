@@ -11,7 +11,7 @@
 // TX: s_rmii_tx_axis_net 由本模块产生 tready 反压
 // 透传模式: 前导码/SFD/CRC 均由上层负责
 
-module rmii_axis(
+module phy_rmii_axis(
     input   wire            rstn,
     input   wire            rmii_clk,                   // 50 MHz
     // PHY RX

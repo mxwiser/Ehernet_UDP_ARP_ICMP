@@ -1,7 +1,7 @@
 `include "axis.svh"
 
-// rx_cdc_fifo_axis: RX 数据通路跨时钟域 (rmii_clk -> clk)
-// s_rx 在 rmii_clk 域(来自 rmii_axis), m_rx 在 clk 域(送往 udp_axis_rx / eth_axis)
+// rx_cdc_fifo_axis: RX 数据通路跨时钟域 (rx_clk -> clk)
+// s_rx 在 rx_clk 域(来自 rmii_axis), m_rx 在 clk 域(送往 udp_axis_rx / eth_axis)
 // tlast 为帧电平信号(高电平 = 帧内), 逐字节与 tdata 一起存入异步 FIFO,
 // 读侧原样还原 tlast 电平, 帧边界不失真
 // dcfifo 为纯 RTL 异步 FIFO, 格雷码指针 + 双触发器同步
@@ -9,7 +9,7 @@
 module rx_cdc_fifo_axis(
     input logic rstn,
     input logic clk,
-    input logic rmii_clk,
+    input logic rx_clk,
     axis.slave s_rx,
     axis.master m_rx
 );
@@ -24,14 +24,14 @@ module rx_cdc_fifo_axis(
     logic [7:0]  out_data;
     logic        out_last;
 
-// ================================ 写侧: rmii_clk 域 ================================
+// ================================ 写侧: rx_clk 域 ================================
     assign s_rx.tready = !wr_full;
 
     dcfifo #(
         .DATA_WIDTH (9),
         .DEPTH      (DEPTH)
     ) u_rx_dcfifo (
-        .wrclk   (rmii_clk),
+        .wrclk   (rx_clk),
         .wrreq   (s_rx.tvalid && !wr_full),
         .data    ({s_rx.tlast, s_rx.tdata}),
         .wrfull  (wr_full),
