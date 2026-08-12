@@ -43,6 +43,7 @@ module udp(
 	wire	[15:0]						board_port;
 
 	axis								rx_net();					// PHY RX -> udp_axis_rx
+	axis								rx_net_cdc();	
 	axis								tx_sys();					// udp_axis_rx ARP reply
 	axis								tx_udp();					// udp_axis_tx UDP data
 	axis								tx_net();					// muxed TX -> rmii_axis
@@ -67,14 +68,22 @@ rmii_axis								u_rmii_axis (
 	.s_rmii_tx_axis_net					( tx_phy     		)
 );
 
+rx_cdc_fifo_axis u_rx_cdc_fifo_axis(
+	.rstn     (sys_rst_n),
+	.clk  	  (sys_clk),
+	.rmii_clk (rmii_clk),
+	.s_rx (rx_net),
+	.m_rx (rx_net_cdc)
+);
+
 udp_axis_rx#(
 	.BOARD_IP_ADDR   (BOARD_IP_ADDR),
 	.BOARD_MAC_ADDR  (BOARD_MAC_ADDR)
 )
 										u_udp_axis_rx (
-	.sys_clk							( rmii_clk			),
+	.sys_clk							( sys_clk			),
 	.sys_rst_n							( sys_rst_n			),
-	.s_axis_rx							( rx_net			),
+	.s_axis_rx							( rx_net_cdc		),
 	.m_axis_tx							( tx_sys			),
 	.udp_rxstart						( udp_rxstart		),
 	.udp_rxend							( udp_rxend			),
@@ -94,7 +103,7 @@ udp_axis_tx#(
 	.BOARD_MAC_ADDR  (BOARD_MAC_ADDR)
 )								
 										u_udp_axis_tx (
-	.sys_clk							( rmii_clk			),
+	.sys_clk							( sys_clk			),
 	.sys_rst_n							( sys_rst_n			),
 	.m_axis_tx							( tx_udp			),
 	.udp_txstart						( udp_txstart		),
@@ -112,7 +121,7 @@ udp_axis_tx#(
 
 
 tx_fifo_axis u_tx_fifo_axis(
-	.clk	 (rmii_clk),
+	.clk	 (sys_clk),
 	.rstn	 (sys_rst_n),
 	.sys_tx  (tx_sys),
 	.udp_tx	 (tx_udp),
