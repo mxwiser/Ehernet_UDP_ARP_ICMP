@@ -7,7 +7,7 @@ BOARD_IP   = "10.10.1.10"  #板子IP
 BOARD_PORT = 8080          #板子端口
 LOCAL_IP   = "10.10.1.11"  #电脑IP   （源IP）
 LOCAL_PORT = 9000          #电脑端口 （源端口）
-SEND_COUNT = 10000
+SEND_COUNT = 50000
 INTERVAL_MS = 1
 
 
