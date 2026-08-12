@@ -2,8 +2,10 @@ module phy_smi_helper(
     input logic clk,
     input  logic rst,
     input  logic mdclk,
+    output logic phyrst,
     inout  logic mdio
 );
+assign phyrst = rphyrst;
 logic rphyrst;
 logic phy_rdy;
 logic SMI_trg;
@@ -85,7 +87,7 @@ SMI_ct ct(
     .phy_adr(5'd1), .reg_adr(SMI_adr),
     .data(SMI_wdata),
     .smi_data(SMI_data),
-    .mdio(netrmii.mdio)
+    .mdio(mdio)
 );
 
 endmodule
