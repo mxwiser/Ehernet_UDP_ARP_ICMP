@@ -3,15 +3,15 @@
 // udp_loop: EP4CE10 + LAN8720A UDP 回环 (AXIS 版本)
 // PC 发来的 UDP 数据经 eth_axis 解析后存入 FIFO, 回环发回 PC
 module udp_loop (
-	input	wire						sys_rst_n,
+	input	logic						sys_rst_n,
 	output  logic	[1:0]				led,
 	input	logic                       clk,
-	input	wire						rmii_clk,
-	input	wire					   	rmii_rxdv,
-	input	wire	[1:0]				rmii_rxdata,
-	output	wire						rmii_txen,
-	output	wire	[1:0]				rmii_txdata,
-	output	wire						rmii_rst
+	input	logic						rmii_clk,
+	input	logic					   	rmii_rxdv,
+	input	logic	[1:0]				rmii_rxdata,
+	output	logic						rmii_txen,
+	output	logic	[1:0]				rmii_txdata,
+	output	logic						rmii_rst
 );
 
 	wire								udp_rxstart;
@@ -26,17 +26,28 @@ module udp_loop (
 	wire								udp_txreq;
 	wire								udp_txbusy;
 
+axis								m_phy_rx();
+axis								s_phy_tx();
 
+rmii_axis								u_rmii_axis (
+	.rstn								( sys_rst_n			),
+	.rmii_clk							( rmii_clk			),
+	.rmii_crs_dv						( rmii_rxdv			),
+	.rmii_rxdata						( rmii_rxdata		),
+	.rmii_txen							( rmii_txen			),
+	.rmii_txdata						( rmii_txdata		),
+	.rmii_rst							( rmii_rst			),
+	.m_rmii_rx_axis_net					( m_phy_rx			),
+	.s_rmii_tx_axis_net					( s_phy_tx     		)
+);
 
-udp								u1_udp (
+udp		u1_udp (
 	.sys_rst_n							( sys_rst_n		),
 	.sys_clk							( clk			),
-	.rmii_clk							( rmii_clk		),
-	.rmii_rxdv							( rmii_rxdv		),
-	.rmii_rxdata						( rmii_rxdata	),
-	.rmii_txen							( rmii_txen		),
-	.rmii_txdata						( rmii_txdata	),
-	.rmii_rst							( rmii_rst		),
+	.m_phy_rx							( m_phy_rx      ),
+	.s_phy_tx                           ( s_phy_tx      ),
+	.tx_clk								( rmii_clk		),
+	.rx_clk								( rmii_clk      ),	
 	.udp_rxstart						( udp_rxstart	),
 	.udp_rxend							( udp_rxend		),
 	.udp_rxdv							( udp_rxdv		),

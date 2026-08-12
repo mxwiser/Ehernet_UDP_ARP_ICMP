@@ -11,7 +11,7 @@
 // 透传模式: 前导码/SFD/CRC 均由上层负责
 // 位序: 每字节低半字节先发/先收 (LSB first, 同以太网线序)
 
-module mii_axis(
+module phy_mii_axis(
     input  logic        rstn,
     //mii tx
     input  logic        tx_clk,

@@ -1,15 +1,15 @@
 `include "axis.svh"
 
-// tx_cdc_fifo_axis: TX 数据通路跨时钟域 (clk -> rmii_clk)
+// tx_cdc_fifo_axis: TX 数据通路跨时钟域 (clk -> tx_clk)
 // sys_tx / udp_tx 在 clk 域 (来自 udp_axis_rx 的 ARP 应答 / udp_axis_tx 的 UDP 数据)
-// phy_tx 在 rmii_clk 域 (送往 rmii_axis), tlast 保持帧电平语义
-// 每通道 9bit 异步 FIFO (dcfifo, 写 clk 域, 读 rmii_clk 域):
+// phy_tx 在 tx_clk 域 (送往 rmii_axis), tlast 保持帧电平语义
+// 每通道 9bit 异步 FIFO (dcfifo, 写 clk 域, 读 tx_clk 域):
 //   [8]=1 为帧尾标记字, tlast 下降沿后写入一个 {1'b1, 8'h00}, 读侧弹出标记字即本帧结束
-// 帧级仲裁 (sys 优先) 与读出在 rmii_clk 域完成
+// 帧级仲裁 (sys 优先) 与读出在 tx_clk 域完成
 
 module tx_cdc_fifo_axis(
     input logic      clk,
-    input logic      rmii_clk,
+    input logic      tx_clk,
     input logic      rstn,
     axis.slave sys_tx,
     axis.slave udp_tx,
@@ -52,7 +52,7 @@ dcfifo#(
 	.wrreq		(sys_marker_pending || sys_tx.tvalid),
 	.data		(sys_marker_pending ? {1'b1,8'h00} : sys_fifo_data),
 	.wrfull		(sys_wr_full),
-	.rdclk		(rmii_clk),
+	.rdclk		(tx_clk),
 	.rdreq		(sys_rdreq),
 	.q			(sys_q),
 	.rdempty	(sys_empty)
@@ -94,13 +94,13 @@ dcfifo#(
 	.wrreq		(udp_marker_pending || udp_tx.tvalid),
 	.data		(udp_marker_pending ? {1'b1,8'h00} : udp_fifo_data),
 	.wrfull		(udp_wr_full),
-	.rdclk		(rmii_clk),
+	.rdclk		(tx_clk),
 	.rdreq		(udp_rdreq),
 	.q			(udp_q),
 	.rdempty	(udp_empty)
 );
 
-// ================================ 帧级仲裁 + 读出 (rmii_clk 域) ================================
+// ================================ 帧级仲裁 + 读出 (tx_clk 域) ================================
 // dcfifo 读输出为寄存器: rdreq 弹出后下一拍 q 才有效, 用 rd_pending 等待一拍再捕获
 // in_frame 标记本帧未结束: 帧尾标记字弹出前禁止切换通道, 避免帧间粘包
 reg			 sel;							// 1'b0: sys, 1'b1: udp
@@ -119,7 +119,7 @@ assign cur_rdreq  = !cur_empty && !rd_pending && (!out_valid || phy_tx.tready);
 assign sys_rdreq  = !sel ? cur_rdreq : 1'b0;
 assign udp_rdreq  = sel  ? cur_rdreq : 1'b0;
 
-always_ff@(posedge rmii_clk or negedge rstn) begin
+always_ff@(posedge tx_clk or negedge rstn) begin
 	if(!rstn) begin
 		sel        <= 1'b0;
 		rd_pending <= 1'b0;
