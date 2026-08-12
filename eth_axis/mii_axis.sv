@@ -14,5 +14,4 @@ module mii_axis(
     axis.slave          s_phy_tx
 );
 
-
 endmodule

@@ -73,8 +73,6 @@ always @ ( posedge clk or negedge sys_rst_n ) begin
 	end
 end
 
-
-
 always @ ( posedge clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_txamount <= 16'd0;

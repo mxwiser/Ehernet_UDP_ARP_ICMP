@@ -13,7 +13,6 @@ module rx_cdc_fifo_axis(
     axis.slave s_rx,
     axis.master m_rx
 );
-
     parameter DEPTH = 512;
 
     logic        wr_full;

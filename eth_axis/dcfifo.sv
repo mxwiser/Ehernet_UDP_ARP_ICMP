@@ -2,7 +2,6 @@
 // 指针用格雷码跨时钟域传递, 双触发器同步, 消除亚稳态
 // 读端口为寄存器输出: rdreq 弹出的数据下一拍才在 q 上有效 (仿真与综合时序一致)
 // 综合为 M9K 简单双口 RAM, DEPTH 必须为 2 的幂
-
 module dcfifo #(
     parameter DATA_WIDTH = 8,
     parameter DEPTH      = 1024

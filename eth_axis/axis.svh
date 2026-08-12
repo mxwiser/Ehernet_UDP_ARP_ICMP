@@ -6,7 +6,6 @@ logic        tvalid;
 logic        tready;
 logic        tlast;
 logic        tuser;
-
 modport master(
     output tdata,
     output tvalid,
