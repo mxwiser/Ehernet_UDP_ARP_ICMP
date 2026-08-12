@@ -1,0 +1,75 @@
+import socket
+import struct
+import time
+import select
+
+BOARD_IP   = "10.10.1.10"  #板子IP
+BOARD_PORT = 8080          #板子端口
+LOCAL_IP   = "10.10.1.11"  #电脑IP   （源IP）
+LOCAL_PORT = 9000          #电脑端口 （源端口）
+TIMEOUT_S  = 0.5           #等待回包超时
+INTERVAL_S = 0.5           #每秒测一次
+
+
+def ping_once(s, seq):
+    payload = struct.pack(">II", 0xAA55AA55, seq)
+    start = time.monotonic()
+    s.sendto(payload, (BOARD_IP, BOARD_PORT))
+
+    while time.monotonic() - start < TIMEOUT_S:
+        readable, _, _ = select.select([s], [], [], TIMEOUT_S - (time.monotonic() - start))
+        if not readable:
+            break
+        data, addr = s.recvfrom(2048)
+        if addr[0] != BOARD_IP or len(data) < 8:
+            continue
+        magic, rseq = struct.unpack(">II", data[:8])
+        if magic == 0xAA55AA55 and rseq == seq:
+            return time.monotonic() - start
+    return None
+
+
+def main():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind((LOCAL_IP, LOCAL_PORT))
+    s.setblocking(False)
+
+    print(f"UDP ping {BOARD_IP}:{BOARD_PORT}, interval {INTERVAL_S}s, timeout {TIMEOUT_S}s")
+
+    seq = 1
+    sent = 0
+    lost = 0
+    times = []
+    deadline = time.monotonic()
+    try:
+        while True:
+            rtt = ping_once(s, seq)
+            sent += 1
+            if rtt is None:
+                lost += 1
+                print(f"reply from {BOARD_IP}: seq={seq} timeout")
+            else:
+                times.append(rtt)
+                ms = rtt * 1000
+                print(f"reply from {BOARD_IP}: seq={seq} time={ms:.3f} ms")
+
+            delay = deadline + INTERVAL_S - time.monotonic()
+            if delay > 0:
+                time.sleep(delay)
+            deadline += INTERVAL_S
+            seq += 1
+    except KeyboardInterrupt:
+        pass
+    finally:
+        s.close()
+
+    loss = lost / sent * 100 if sent else 0
+    print(f"\n--- {BOARD_IP} UDP ping statistics ---")
+    print(f"{sent} packets transmitted, {sent - lost} received, {loss:.1f}% packet loss")
+    if times:
+        print(f"rtt min/avg/max = {min(times) * 1000:.3f}/{sum(times) / len(times) * 1000:.3f}/{max(times) * 1000:.3f} ms")
+
+
+if __name__ == "__main__":
+    main()
