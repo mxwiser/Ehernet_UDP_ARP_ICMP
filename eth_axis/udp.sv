@@ -119,7 +119,6 @@ udp_axis_tx#(
 
 
 
-
 tx_cdc_fifo_axis u_tx_cdc_fifo_axis(
 	.clk	 (sys_clk),
 	.rmii_clk(rmii_clk),

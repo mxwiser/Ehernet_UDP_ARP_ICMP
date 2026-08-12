@@ -1,7 +1,6 @@
 `include "axis.svh"
 
 
-
 module udp_axis_rx #(
 	parameter		BOARD_MAC_ADDR			= 48'h00_10_22_33_44_55,
 	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17			// 169.254.1.23

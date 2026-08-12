@@ -31,7 +31,6 @@ module udp_axis_tx #(
 );
 
 
-
 // -------------------------------- axis <-> gmii bridge ------------------------------------------
 // gmii_txen && !gmii_txbusy  ==  tvalid && tready, so the original FSM body is unchanged
 	reg			[7:0]						gmii_txdata;

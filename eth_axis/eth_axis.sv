@@ -13,7 +13,6 @@
 module eth_axis (
 	input	wire							sys_clk,
 	input	wire							sys_rst_n,
-	
 	axis.slave								s_axis_rx,				// PHY RX stream from rmii_axis, tlast is frame-level
 	axis.master								m_axis_tx,				// ARP / ICMP echo reply TX stream to rmii_axis
 	output	reg								arp_working,			// ARP / ICMP reply is being sent, for TX arbitration

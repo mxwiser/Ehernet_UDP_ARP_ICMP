@@ -168,5 +168,4 @@ module rmii_axis(
             end
         end
     end
-
 endmodule

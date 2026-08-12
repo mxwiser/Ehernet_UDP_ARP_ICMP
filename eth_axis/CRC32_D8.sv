@@ -99,5 +99,4 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		crc32_inverse_d <= crc32_inverse_d;
 	end
 end
-
 endmodule

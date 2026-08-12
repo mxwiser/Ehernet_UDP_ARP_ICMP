@@ -43,7 +43,6 @@ begin
     if(wrreq && !full)begin
         mem[wr_ptr] <= data;
     end
-
 end
 
 // 读数据直接组合输出(读指针与读数据同拍), 支持背靠背连续读
