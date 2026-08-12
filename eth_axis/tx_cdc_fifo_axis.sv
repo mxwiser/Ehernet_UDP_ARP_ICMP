@@ -1,6 +1,6 @@
 `include "axis.svh"
 
-module tx_fifo_axis(
+module tx_cdc_fifo_axis(
     input logic      clk,
     input logic      rstn,
     axis.slave sys_tx,

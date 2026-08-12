@@ -120,7 +120,7 @@ udp_axis_tx#(
 
 
 
-tx_fifo_axis u_tx_fifo_axis(
+tx_cdc_fifo_axis u_tx_fifo_axis(
 	.clk	 (sys_clk),
 	.rstn	 (sys_rst_n),
 	.sys_tx  (tx_sys),
