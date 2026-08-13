@@ -94,7 +94,7 @@ eth_axis #(
 	reg		[15:0]							ip_len;
 	reg		[15:0]							udp_len;
 	reg		[15:0]							id;
-	reg		[2:0]							flags;
+	reg		[15:0]							flags;							// [15:13] flag bits, [12:0] fragment offset
 	
 	reg		[2:0]							cnt_pre;
 	reg		[3:0]							cnt_mac_addr;
@@ -112,9 +112,9 @@ eth_axis #(
 	reg		[5:0]							cnt_network;					// count network length up to 63, avoid short data in udp, complete filled data in ip header
 
 	wire									pc_refresh;
+	wire									is_frag						= ( flags[12:0] != 13'd0 );		// 非首片分片: fragment offset != 0
 	reg		[15:0]							cnt_data;
 	reg		[15:0]							data_len;
-	reg										udp_continue;					// flags[0] is assigned to it when state == UDP_CRC. indicates that next frame is continuous
 
 
 
@@ -239,9 +239,9 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				end
 			end
 			IP_ADDR: begin
-				if ( cnt_ip_addr >= 3'd7 && s_mac_tvalid && udp_continue && cnt_network < ip_header_len - 1 ) begin
+				if ( cnt_ip_addr >= 3'd7 && s_mac_tvalid && is_frag && cnt_network < ip_header_len - 1 ) begin
 					state <= IP_FILL;
-				end else if ( cnt_ip_addr >= 3'd7 && s_mac_tvalid && udp_continue ) begin
+				end else if ( cnt_ip_addr >= 3'd7 && s_mac_tvalid && is_frag ) begin
 					state <= DATA;
 				end else if ( cnt_ip_addr >= 3'd7 && s_mac_tvalid ) begin
 					state <= UDP_PORT;
@@ -252,7 +252,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				end
 			end
 			IP_FILL: begin
-				if ( cnt_network >= ip_header_len - 1 && s_mac_tvalid && udp_continue ) begin
+				if ( cnt_network >= ip_header_len - 1 && s_mac_tvalid && is_frag ) begin
 					state <= DATA;
 				end else if ( cnt_network >= ip_header_len - 1 && s_mac_tvalid ) begin
 					state <= UDP_PORT;
@@ -534,9 +534,11 @@ end
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
-		flags <= 3'h0;
+		flags <= 16'h0;
 	end else if ( state == IP_SPLIT && !cnt_ip_split && s_mac_tvalid ) begin
-		flags <= s_mac_tdata[7:5];
+		flags[15:8] <= s_mac_tdata;
+	end else if ( state == IP_SPLIT && cnt_ip_split && s_mac_tvalid ) begin
+		flags[7:0] <= s_mac_tdata;
 	end else begin
 		flags <= flags;
 	end
@@ -770,7 +772,7 @@ end
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_rxstart <= 1'b0;
-	end else if ( !udp_continue && state == DATA && cnt_data == 16'd8 && s_mac_tvalid ) begin
+	end else if ( !is_frag && !flags[13] && state == DATA && cnt_data == 16'd8 && s_mac_tvalid ) begin
 		udp_rxstart <= 1'b1;
 	end else begin
 		udp_rxstart <= 1'b0;
@@ -780,7 +782,7 @@ end
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_rxend <= 1'b0;
-	end else if ( !flags[0] && state == DATA && cnt_data == data_len - 16'd1 && s_mac_tvalid ) begin
+	end else if ( !is_frag && !flags[13] && state == DATA && cnt_data == data_len - 16'd1 && s_mac_tvalid ) begin
 		udp_rxend <= 1'b1;
 	end else begin
 		udp_rxend <= 1'b0;
@@ -790,7 +792,7 @@ end
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_rxdv <= 1'b0;
-	end else if ( state == DATA && s_mac_tvalid && udp_rxnum < udp_len - 8 ) begin
+	end else if ( state == DATA && s_mac_tvalid && !is_frag && !flags[13] && udp_rxnum < udp_len - 8 ) begin
 		udp_rxdv <= 1'b1;
 	end else begin
 		udp_rxdv <= 1'b0;
@@ -818,16 +820,6 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		udp_rxnum <= udp_rxnum + 16'd1;
 	end else begin
 		udp_rxnum <= udp_rxnum;
-	end
-end
-
-always @ ( posedge sys_clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
-		udp_continue <= 1'b0;
-	end else if ( state == UDP_CRC ) begin
-		udp_continue <= flags[0];
-	end else begin
-		udp_continue <= udp_continue;
 	end
 end
 

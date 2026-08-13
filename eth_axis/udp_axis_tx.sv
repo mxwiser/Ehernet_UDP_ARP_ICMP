@@ -231,7 +231,7 @@ assign		udp_txreq		=	( ( state ==IP_ADDR && cnt_ip_addr >= 3'd7 && udp_continue 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_txbusy <= 1'b0;
-	end else if ( udp_txstart ) begin
+	end else if ( udp_txstart && !udp_txbusy ) begin
 		udp_txbusy <= 1'b1;
 	end else if ( state == IDLE && !udp_continue ) begin
 		udp_txbusy <= 1'b0;
@@ -478,7 +478,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_rest <= 16'd0;
 	end else if ( udp_txstart && !udp_txbusy ) begin
-		udp_rest <= udp_txamount + 16'd8;
+		udp_rest <= ( udp_txamount > 16'd65527 ) ? 16'd65535 : ( udp_txamount + 16'd8 );	// 饱和, 防止 16 位溢出
 	end else if ( state == CRC && cnt_crc == 0 && gmii_txen && !gmii_txbusy ) begin
 		if ( udp_rest > 'd1480 ) begin
 			udp_rest <= udp_rest - 16'd1480;

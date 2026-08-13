@@ -43,12 +43,9 @@ module udp(
 	wire	[15:0]						pc_port;
 	wire	[15:0]						board_port;
 
-	axis								rx_net();					// PHY RX -> udp_axis_rx
 	axis								rx_net_cdc();	
 	axis								tx_sys();					// udp_axis_rx ARP reply
 	axis								tx_udp();					// udp_axis_tx UDP data
-	axis								tx_net();					// muxed TX -> rmii_axis
-	axis								tx_phy();
 
 	
 	parameter		BOARD_MAC_ADDR			= 48'h51_12_22_33_44_55;
