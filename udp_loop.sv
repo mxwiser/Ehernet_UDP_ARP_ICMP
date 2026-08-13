@@ -26,8 +26,8 @@ module udp_loop (
 	wire								udp_txreq;
 	wire								udp_txbusy;
 
-axis								m_phy_rx();
-axis								s_phy_tx();
+    axis								m_phy_rx();
+    axis								s_phy_tx();
 
 phy_rmii_axis							u_phy_rmii_axis (
 	.rstn								( sys_rst_n			),

@@ -11,7 +11,7 @@ Ethernet communication project based on Cyclone IV E (EP4CE10F17C8) + LAN8720A (
 - UDP RX/TX; top-level `udp_loop` echoes received UDP data back to PC
 - Frame-level AXI-Stream bus, decoupled from the PHY interface
 - Clock domain crossing: async CDC FIFOs (`rx_cdc_fifo_axis` / `tx_cdc_fifo_axis`, based on `dcfifo`) separate the system clock from the PHY clock
-- GMII bridge not included; implement it yourself if needed
+
 
 ## Directory Structure
 
@@ -54,7 +54,7 @@ Frame boundary convention: AXIS `tlast` is a level signal (high = in frame, fall
 - Board IP: 10.10.1.10 (see `BOARD_IP_ADDR` in `eth_axis/udp.sv`)
 - Test: set PC to same subnet (e.g. 10.10.1.x), `ping 10.10.1.10` to verify ICMP/ARP; send UDP via a network tool to see the loopback
 - MII bridge is included but not instantiated in the top level; switch to it by replacing `phy_rmii_axis` in `udp_loop.sv` (transparent pass-through: preamble/SFD/CRC handled by upper layer)
-- GMII bridge is not provided; implement it yourself following the AXIS conventions above if needed
+
 
 ---
 
@@ -71,7 +71,7 @@ Frame boundary convention: AXIS `tlast` is a level signal (high = in frame, fall
 - UDP 接收/发送,`udp_loop` 顶层实现 UDP 数据回环(PC 发包 → 板卡原样返回)
 - 帧级 AXI-Stream 总线,与具体 PHY 接口解耦
 - 跨时钟域: 通过异步 CDC FIFO(`rx_cdc_fifo_axis` / `tx_cdc_fifo_axis`,基于 `dcfifo`)隔离系统时钟与 PHY 时钟
-- GMII 转换未提供,如需使用请自行实现
+
 
 ## 目录结构
 
@@ -114,4 +114,4 @@ LAN8720A <──RMII── phy_rmii_axis <──AXIS──< tx_cdc_fifo_axis <�
 - 板卡 IP: 10.10.1.10(见 `eth_axis/udp.sv` 的 `BOARD_IP_ADDR`)
 - 测试: PC 配置同网段 IP(如 10.10.1.x),`ping 10.10.1.10` 验证 ICMP/ARP;UDP 助手发包即可回环
 - MII 转换已提供但未在顶层例化;如需使用,在 `udp_loop.sv` 中替换 `phy_rmii_axis` 即可(透传模式: 前导码/SFD/CRC 由上层负责)
-- GMII 转换未提供,如需使用请按上述 AXIS 帧约定自行实现
+
