@@ -63,7 +63,7 @@ udp		u1_udp (
 
 fifo#(
 	.DATA_WIDTH('d8),
-	.DEPTH('d1024)
+	.DEPTH('d2048)
 )							u2_fifo_1024_d8 (
 	.rstn								( sys_rst_n		),
 	.clock								( clk			),
@@ -78,9 +78,9 @@ always @ ( posedge clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		udp_txstart <= 1'b0;
 	end else if ( udp_rxend ) begin
-		udp_txstart <= 1'b1;
-	end else begin
-		udp_txstart <= 1'b0;
+		udp_txstart <= 1'b1;					// 电平保持, 直到 TX 模块空闲后接收
+	end else if ( udp_txstart && !udp_txbusy ) begin
+		udp_txstart <= 1'b0;					// TX 已接收启动, 清除
 	end
 end
 
@@ -96,9 +96,12 @@ end
 
 
 //user test
-always @ (posedge clk) begin
-	if((udp_rxdata=='hA1) &&udp_rxdv)
-		led <= !led;
+always @ ( posedge clk or negedge sys_rst_n ) begin
+	if ( !sys_rst_n ) begin
+		led <= 2'b0;
+	end else if ( udp_rxdv && ( udp_rxdata == 'hA1 ) ) begin
+		led <= ~led;
+	end
 end
 
 

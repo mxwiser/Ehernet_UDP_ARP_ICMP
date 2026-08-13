@@ -54,7 +54,6 @@ module eth_axis (
 // ================================ ARP part (from eth_arp_gmii.v) ================================
 	localparam		IDLE					= 28'h0_0001,
 					RX_SFD					= 28'h0_0002,						// (0xD5)
-					TX_PACKAGE_HEAD			= 28'h0_0002,						// preamble (7B 0x55), and SFD
 					MAC_DES					= 28'h0_0004,
 					MAC_SRC					= 28'h0_0008,
 					TYPE					= 28'h0_0010,						// MAC package
@@ -1194,12 +1193,13 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		icmp_tx_pending <= 1'b0;
 	end else if ( icmp_req_true ) begin
 		icmp_tx_pending <= 1'b1;
-	end else if ( icmp_tx_start ) begin
+	end else if ( icmp_tx_start && tx_start ) begin					// 仅当 TX 真正启动后清除, 避免与 ARP 回复竞争丢包
 		icmp_tx_pending <= 1'b0;
 	end
 end
 
-	wire									icmp_tx_start		= icmp_tx_pending && ( icmp_cks_stage == 3'd4 );
+	wire									icmp_tx_start		= icmp_tx_pending && ( icmp_cks_stage == 3'd4 );	// 电平: 保持到 TX 真正启动
+	wire									tx_start			= ( arp_resp || icmp_tx_start ) && !tx_active;
 
 // -------------------------------- transform arp / icmp response ------------------------------------------
 // ARP reply frame: preamble(7B 0x55 + SFD 0xD5) + eth_head(14B) + arp_head(8B) +
@@ -1295,6 +1295,8 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	end else if ( icmp_cks_stage == 3'd3 ) begin
 		icmp_cks_stage	<= 3'd4;
 		icmp_sum_f2		<= {4'b0, icmp_sum_f1[15:0]} + {16'b0, icmp_sum_f1[19:16]};
+	end else if ( icmp_cks_stage == 3'd4 ) begin
+		icmp_cks_stage	<= tx_start ? 3'd0 : 3'd4;				// 校验和就绪, 等待 TX 空闲后启动
 	end else begin
 		icmp_cks_stage	<= 3'd0;
 	end
@@ -1320,9 +1322,9 @@ end
 		end else if ( cnt <= 7'd23 ) begin									// version/IHL + TOS = 0x4500
 			icmp_reply_byte = ( cnt == 7'd22 ) ? 8'h45 : 8'h00;
 		end else if ( cnt <= 7'd25 ) begin									// IP total length
-			icmp_reply_byte = tx_ip_total[ (31 - 8*(cnt - 7'd24)) -: 8 ];
+			icmp_reply_byte = tx_ip_total[ (15 - 8*(cnt - 7'd24)) -: 8 ];
 		end else if ( cnt <= 7'd27 ) begin									// IP identification = rx ip_id
-			icmp_reply_byte = tx_ip_id[ (31 - 8*(cnt - 7'd26)) -: 8 ];
+			icmp_reply_byte = tx_ip_id[ (15 - 8*(cnt - 7'd26)) -: 8 ];
 		end else if ( cnt <= 7'd29 ) begin									// flags + fragment offset = 0x0000
 			icmp_reply_byte = 8'h00;
 		end else if ( cnt == 7'd30 ) begin									// TTL = 128
@@ -1330,7 +1332,7 @@ end
 		end else if ( cnt == 7'd31 ) begin									// protocol = 1 (ICMP)
 			icmp_reply_byte = 8'h01;
 		end else if ( cnt <= 7'd33 ) begin									// IP header checksum
-			icmp_reply_byte = tx_ip_cksum[ (31 - 8*(cnt - 7'd32)) -: 8 ];
+			icmp_reply_byte = tx_ip_cksum[ (15 - 8*(cnt - 7'd32)) -: 8 ];
 		end else if ( cnt <= 7'd37 ) begin									// source IP = BOARD_IP_ADDR
 			icmp_reply_byte = BOARD_IP_ADDR[ (31 - 8*(cnt - 7'd34)) -: 8 ];
 		end else if ( cnt <= 7'd41 ) begin									// dest IP = tx_des_ip (PC IP)
@@ -1338,11 +1340,11 @@ end
 		end else if ( cnt <= 7'd43 ) begin									// ICMP type/code = 0x0000 (echo reply)
 			icmp_reply_byte = 8'h00;
 		end else if ( cnt <= 7'd45 ) begin									// ICMP checksum
-			icmp_reply_byte = tx_icmp_cksum[ (31 - 8*(cnt - 7'd44)) -: 8 ];
+			icmp_reply_byte = tx_icmp_cksum[ (15 - 8*(cnt - 7'd44)) -: 8 ];
 		end else if ( cnt <= 7'd47 ) begin									// ICMP identifier
-			icmp_reply_byte = tx_icmp_id[ (31 - 8*(cnt - 7'd46)) -: 8 ];
+			icmp_reply_byte = tx_icmp_id[ (15 - 8*(cnt - 7'd46)) -: 8 ];
 		end else if ( cnt <= 7'd49 ) begin									// ICMP sequence
-			icmp_reply_byte = tx_icmp_seq[ (31 - 8*(cnt - 7'd48)) -: 8 ];
+			icmp_reply_byte = tx_icmp_seq[ (15 - 8*(cnt - 7'd48)) -: 8 ];
 		end else if ( cnt <= ( 11'd49 + tx_icmp_len ) ) begin				// echoed payload from FIFO
 			icmp_reply_byte = icmp_fifo_q;
 		end else begin														// CRC32, LSB first (Ethernet FCS order)
@@ -1392,7 +1394,7 @@ fifo #(
 			tx_ip_id		<= 16'h0;
 			tx_icmp_id		<= 16'h0;
 			tx_icmp_seq		<= 16'h0;
-		end else if ( ( arp_resp || icmp_tx_start ) && !tx_active ) begin		// start a new ARP / ICMP reply
+		end else if ( tx_start ) begin								// start a new ARP / ICMP reply
 			tx_active		<= 1'b1;
 			tx_cnt			<= 11'd0;
 			tx_is_icmp		<= icmp_tx_start;
