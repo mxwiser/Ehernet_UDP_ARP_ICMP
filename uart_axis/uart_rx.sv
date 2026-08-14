@@ -273,29 +273,7 @@ always @ (posedge clk or negedge rstn)
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------
 // parameter checking
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------
-initial begin
-    if (BAUD_CYCLES < 10) begin $error("invalid parameter : BAUD_CYCLES < 10, please use a faster driving clock"); $stop; end
-    
-    $display("uart_rx :           parity = %s" , PARITY );
-    $display("uart_rx :     clock period = %.0f ns   (%-10d Hz)" , 1000000000.0/CLK_FREQ  , CLK_FREQ );
-    $display("uart_rx : baud rate period = %.0f ns   (%-10d Hz)" , 1000000000.0/BAUD_RATE , BAUD_RATE);
-    $display("uart_rx :      baud cycles = %-10d"    , BAUD_CYCLES );
-    $display("uart_rx : baud cycles frac = %-10d"    , BAUD_CYCLES_FRAC  );
-    
-    if (PARITY == "ODD" || PARITY == "EVEN") begin
-        $display("uart_rx :             __      ____ ____ ____ ____ ____ ____ ____ ____________ ");
-        $display("uart_rx :        wave   \\____/____X____X____X____X____X____X____X____X____/   ");
-        $display("uart_rx :        bits   | S  | B0 | B1 | B2 | B3 | B4 | B5 | B6 | B7 | P  |   ");
-        $display("uart_rx : time_points  t0   t1   t2   t3   t4   t5   t6   t7   t8   t9   t10  ");
-        $display("uart_rx :");
-    end else begin
-        $display("uart_rx :             __      ____ ____ ____ ____ ____ ____ ____ _______ ");
-        $display("uart_rx :        wave   \\____/____X____X____X____X____X____X____X____/   ");
-        $display("uart_rx :        bits   | S  | B0 | B1 | B2 | B3 | B4 | B5 | B6 | B7 |   ");
-        $display("uart_rx : time_points  t0   t1   t2   t3   t4   t5   t6   t7   t8   t9   ");
-        $display("uart_rx :");
-    end
-end
+
 
 generate genvar index;
     for (index=0; index<=9; index=index+1) begin : print_and_check_time
