@@ -5,7 +5,7 @@
 module udp_loop (
 	output  logic                       uart_txd,
 	input   logic                       uart_rxd,
-	input	logic						sys_rst_n,
+	input	logic						rstn,
 	output  logic	[1:0]				led,
 	input	logic                       clk,
 	input	logic						rmii_clk,
@@ -32,7 +32,7 @@ module udp_loop (
     axis								s_phy_tx();
 
 phy_rmii_axis							u_phy_rmii_axis (
-	.rstn								( sys_rst_n			),
+	.rstn								( rstn		),
 	.rmii_clk							( rmii_clk			),
 	.rmii_crs_dv						( rmii_rxdv			),
 	.rmii_rxdata						( rmii_rxdata		),
@@ -44,7 +44,7 @@ phy_rmii_axis							u_phy_rmii_axis (
 );
 
 udp		u1_udp (
-	.sys_rst_n							( sys_rst_n		),
+	.sys_rst_n							( rstn		    ),
 	.sys_clk							( clk			),
 	.m_phy_rx							( m_phy_rx      ),
 	.s_phy_tx                           ( s_phy_tx      ),
@@ -80,7 +80,7 @@ fifo#(
 	.DATA_WIDTH('d8),
 	.DEPTH('d2048)
 )							u2_fifo_data (
-	.rstn								( sys_rst_n		),
+	.rstn								( rstn		),
 	.clock								( clk			),
 	.clear								( rx_fifo_clear	),
 	.data								( udp_rxdata	),
@@ -94,7 +94,7 @@ fifo#(
 	.DATA_WIDTH('d16),
 	.DEPTH('d64)
 )							u3_fifo_amt (
-	.rstn								( sys_rst_n		),
+	.rstn								( rstn		),
 	.clock								( clk			),
 	.clear								( rx_fifo_clear	),
 	.data								( udp_rxamount	),
@@ -105,8 +105,8 @@ fifo#(
 	.q									( udp_txamount	)
 );
 
-always @ ( posedge clk or negedge sys_rst_n ) begin
-	if ( !sys_rst_n ) begin
+always @ ( posedge clk or negedge rstn ) begin
+	if ( !rstn ) begin
 		rx_drop <= 1'b0;
 	end else if ( rx_fifo_clear ) begin
 		rx_drop <= 1'b1;					// 溢出: 丢弃本帧剩余数据
@@ -117,8 +117,8 @@ end
 
 
 //user test
-// always @ ( posedge clk or negedge sys_rst_n ) begin
-// 	if ( !sys_rst_n ) begin
+// always @ ( posedge clk or negedge rstn ) begin
+// 	if ( !rstn ) begin
 // 		led <= 2'b0;
 // 	end else if ( udp_rxdv && ( udp_rxdata == 'hA1 ) ) begin
 // 		led <= ~led;
@@ -128,7 +128,7 @@ end
 logic [7:0] uart_data;
 logic uart_rxdv;
 uart_rx u_uart_rx(
-	.rstn   	  (sys_rst_n),
+	.rstn   	  (rstn),
 	.clk		  (clk),
 	.o_tvalid     (uart_rxdv),
 	.o_tdata	  (uart_data),
