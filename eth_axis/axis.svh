@@ -1,7 +1,7 @@
 `ifndef AXIS_INTERFACE
 `define AXIS_INTERFACE
 interface axis #(
-    parameter int BYTE_WIDTH = 1,
+    parameter int BYTE_WIDTH = 1
 );
 logic [BYTE_WIDTH*8-1:0] tdata;
 logic                    tvalid;
@@ -9,6 +9,7 @@ logic                    tready;
 logic                    tlast;
 logic                    tuser;
 logic [BYTE_WIDTH-1:0]   tkeep;
+logic [BYTE_WIDTH-1:0]   tstrb;
 modport master(
     output tdata,
     output tvalid,
