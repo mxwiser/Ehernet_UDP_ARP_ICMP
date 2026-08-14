@@ -12,6 +12,8 @@ logic [BYTE_WIDTH-1:0]   tkeep;
 logic [BYTE_WIDTH-1:0]   tstrb;
 modport master(
     output tdata,
+    output tkeep,
+    output tstrb,
     output tvalid,
     input  tready,
     output tlast,
@@ -19,6 +21,8 @@ modport master(
 );
 modport slave(
     input  tdata,
+    input  tkeep,
+    input  tstrb,
     input  tvalid,
     output tready,
     input  tlast,
