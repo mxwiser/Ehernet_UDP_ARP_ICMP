@@ -99,6 +99,8 @@ set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Topset
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Topset
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Topset
 set_location_assignment PIN_E1 -to clk
+set_global_assignment -name VERILOG_FILE uart_axis/uart_tx.v
+set_global_assignment -name VERILOG_FILE uart_axis/uart_rx.v
 set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/SMI_ct.sv
 set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/phy_smi_helper.sv
 set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/phy_rmii_axis.sv
