@@ -275,34 +275,7 @@ assign f_tready = state[0];   // (state == S_IDLE)
 
 
 
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------
-// parameter checking
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------
-initial begin
-    if (BYTE_WIDTH <= 0) begin $error("invalid parameter : BYTE_WIDTH<=0"); $stop; end
-    if (STOP_BITS  <= 0) begin $error("invalid parameter : STOP_BITS <=0"); $stop; end
-    if (BAUD_CYCLES < 1) begin $error("invalid parameter : BAUD_CYCLES < 1, please use a faster driving clock"); $stop; end
-    
-    $display("uart_tx :           parity = %s" , PARITY );
-    $display("uart_tx :     clock period = %.0f ns   (%-10d Hz)" , 1000000000.0/CLK_FREQ  , CLK_FREQ );
-    $display("uart_tx : baud rate period = %.0f ns   (%-10d Hz)" , 1000000000.0/BAUD_RATE , BAUD_RATE);
-    $display("uart_tx :      baud cycles = %-10d"   , BAUD_CYCLES );
-    $display("uart_tx : baud cycles frac = %-10d"   , BAUD_CYCLES_FRAC  );
-    
-    if (PARITY == "ODD" || PARITY == "EVEN") begin
-        $display("uart_tx :             __      ____ ____ ____ ____ ____ ____ ____ ____________ ");
-        $display("uart_tx :        wave   \\____/____X____X____X____X____X____X____X____X____/   ");
-        $display("uart_tx :        bits   | S  | B0 | B1 | B2 | B3 | B4 | B5 | B6 | B7 | P  |   ");
-        $display("uart_tx : time_points  t0   t1   t2   t3   t4   t5   t6   t7   t8   t9   t10  ");
-        $display("uart_tx :");
-    end else begin
-        $display("uart_tx :             __      ____ ____ ____ ____ ____ ____ ____ _______ ");
-        $display("uart_tx :        wave   \\____/____X____X____X____X____X____X____X____/   ");
-        $display("uart_tx :        bits   | S  | B0 | B1 | B2 | B3 | B4 | B5 | B6 | B7 |   ");
-        $display("uart_tx : time_points  t0   t1   t2   t3   t4   t5   t6   t7   t8   t9   ");
-        $display("uart_tx :");
-    end
-end
+
 
 generate genvar index, i;
     for (index=0; index<=9; index=index+1) begin : print_and_check_time
