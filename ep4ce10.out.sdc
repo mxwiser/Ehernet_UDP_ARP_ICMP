@@ -39,10 +39,10 @@ set_time_format -unit ns -decimal_places 3
 # Create Clock
 #**************************************************************
 
-create_clock -name {clk50m} -period 20.000 -waveform { 0.000 10.000 } [get_ports {rmii_clk}]
+#create_clock -name {clk50m} -period 20.000 -waveform { 0.000 10.000 } [get_ports {rmii_clk}]
 create_clock -name {sys_clk} -period 20.000 -waveform { 0.000 10.000 } [get_ports {clk}]
-
-
+create_clock -name {tx_clk} -period 40.000 -waveform { 0.000 20.000 } [get_ports {mii_txc}]
+create_clock -name {rx_clk} -period 40.000 -waveform { 0.000 20.000 } [get_ports {mii_rxc}]
 #**************************************************************
 # Create Generated Clock
 #**************************************************************
