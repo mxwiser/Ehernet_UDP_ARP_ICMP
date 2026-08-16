@@ -98,7 +98,6 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to led[0]
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to led[1]
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to uart_rxd
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to uart_txd
-set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Topset
 set_location_assignment PIN_M1 -to rstn
 set_location_assignment PIN_M2 -to mii_txc
 set_location_assignment PIN_M15 -to mii_rxc
@@ -112,3 +111,4 @@ set_location_assignment PIN_N12 -to mii_rxd[0]
 set_location_assignment PIN_P11 -to mii_rxd[1]
 set_location_assignment PIN_K8 -to mii_rxd[2]
 set_location_assignment PIN_L8 -to mii_rxd[3]
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Topset

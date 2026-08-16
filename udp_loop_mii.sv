@@ -34,15 +34,25 @@ module udp_loop_mii (
     axis								m_phy_rx();
     axis								s_phy_tx();
 
-
+phy_mii_axis							u_phy_mii_axis (
+	.rstn								( rstn		),
+	.tx_clk								( mii_txc	),
+	.txd								( mii_txd	),
+	.txen								( mii_txen	),
+	.rx_clk								( mii_rxc	),
+	.rxd								( mii_rxd	),
+	.rxdv								( mii_rxdv	),
+	.m_phy_rx							( m_phy_rx	),
+	.s_phy_tx							( s_phy_tx	)
+);
 
 udp		u1_udp (
 	.sys_rst_n							( rstn		    ),
 	.sys_clk							( clk			),
 	.m_phy_rx							( m_phy_rx      ),
 	.s_phy_tx                           ( s_phy_tx      ),
-	.tx_clk								( rmii_clk		),
-	.rx_clk								( rmii_clk      ),	
+	.tx_clk								( mii_txc		),
+	.rx_clk								( mii_rxc		),	
 	.udp_rxstart						( udp_rxstart	),
 	.udp_rxend							( udp_rxend		),
 	.udp_rxdv							( udp_rxdv		),
