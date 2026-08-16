@@ -3,11 +3,12 @@ module phy_smi_helper(
     input  logic rst,
     input  logic mdclk,
     output logic phyrst,
+    output logic phy_rdy,
     inout  logic mdio
 );
 assign phyrst = rphyrst;
 logic rphyrst;
-logic phy_rdy;
+
 logic SMI_trg;
 logic SMI_ack;
 logic SMI_ready;
@@ -18,7 +19,7 @@ logic [15:0] SMI_wdata;
 
 byte SMI_status;
 
-assign ready = phy_rdy;
+
 
 
 always_ff@(posedge mdclk or negedge rst)begin

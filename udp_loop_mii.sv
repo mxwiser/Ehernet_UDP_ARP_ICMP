@@ -9,6 +9,10 @@ module udp_loop_mii (
 	output  logic	[1:0]				led,
 	input	logic                       clk,
 
+	//smi   
+	output  logic  						phy_rst,
+	output  logic                       mdc,
+	inout   logic						mdio,
 	//MII
 	input   logic   					mii_rxdv,
 	input   logic	[3:0]				mii_rxd,
