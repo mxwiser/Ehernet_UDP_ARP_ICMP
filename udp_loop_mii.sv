@@ -22,7 +22,7 @@ module udp_loop_mii (
 	input   logic   					mii_txc
 
 );
-
+    assign  phy_rst = rstn;
 	wire								udp_rxstart;
 	wire								udp_rxend;
 	wire								udp_rxdv;
