@@ -65,6 +65,14 @@ create_clock -name {rx_clk} -period 40.000 -waveform { 0.000 20.000 } [get_ports
 # Set Input Delay
 #**************************************************************
 
+# MII RX 源同步输入: PHY 以 mii_rxc(rx_clk) 为源同步时钟输出 mii_rxd/mii_rxdv,
+# FPGA 内部在 rx_clk 上升沿采样, 故相对 rx_clk 约束建立/保持
+# -max: 数据最迟在 rx_clk 沿后 15 ns 到达 (100M MII 周期 40 ns, 留 25 ns 给内部路径)
+# -min: 数据最早在 rx_clk 沿后 2 ns 才变化 (保护保持时间, 避免过快翻转)
+# 数值按板级典型值估计, 建议按实际 PHY 数据手册的 tpd 与走线延时修正
+set_input_delay -clock { rx_clk } -max 15.000 [get_ports { mii_rxdv mii_rxd[*] }]
+set_input_delay -clock { rx_clk } -min 2.000 [get_ports { mii_rxdv mii_rxd[*] }]
+
 
 
 #**************************************************************
