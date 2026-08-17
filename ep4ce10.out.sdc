@@ -84,7 +84,7 @@ set_input_delay -clock { rx_clk } -min 2.000 [get_ports { mii_rxdv mii_rxd[*] }]
 # -max: 数据最迟在 tx_clk 沿后 10 ns 到达 PHY 采样点 (PHY 建立时间, 周期 40 ns, 留 30 ns 给内部路径+走线)
 # -min: 数据最早在 tx_clk 沿后 2 ns 才变化 (保护 PHY 保持时间, 避免采样到跳变中的值)
 # 数值按板级典型值估计, 建议按实际 PHY 数据手册的 tsu/th 与走线延时修正
-set_output_delay -clock { tx_clk } -max 10.000 [get_ports { mii_txd[*] mii_txen }]
+set_output_delay -clock { tx_clk } -max 5.000 [get_ports { mii_txd[*] mii_txen }]
 set_output_delay -clock { tx_clk } -min 2.000 [get_ports { mii_txd[*] mii_txen }]
 
 
