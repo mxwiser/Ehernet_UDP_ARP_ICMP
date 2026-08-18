@@ -14,7 +14,6 @@ module udp(
 	input	wire						sys_rst_n,
 	input   wire                        sys_clk,
 
-
 	// phy  port
 	axis							    m_phy_rx,
 	axis							    s_phy_tx,

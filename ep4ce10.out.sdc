@@ -39,10 +39,9 @@ set_time_format -unit ns -decimal_places 3
 # Create Clock
 #**************************************************************
 
-#create_clock -name {clk50m} -period 20.000 -waveform { 0.000 10.000 } [get_ports {rmii_clk}]
+create_clock -name {clk50m} -period 20.000 -waveform { 0.000 10.000 } [get_ports {rmii_clk}]
 create_clock -name {sys_clk} -period 20.000 -waveform { 0.000 10.000 } [get_ports {clk}]
-create_clock -name {tx_clk} -period 40.000 -waveform { 0.000 20.000 } [get_ports {mii_txc}]
-create_clock -name {rx_clk} -period 40.000 -waveform { 0.000 20.000 } [get_ports {mii_rxc}]
+
 #**************************************************************
 # Create Generated Clock
 #**************************************************************
@@ -65,13 +64,6 @@ create_clock -name {rx_clk} -period 40.000 -waveform { 0.000 20.000 } [get_ports
 # Set Input Delay
 #**************************************************************
 
-# MII RX 源同步输入: PHY 以 mii_rxc(rx_clk) 为源同步时钟输出 mii_rxd/mii_rxdv,
-# FPGA 内部在 rx_clk 上升沿采样, 故相对 rx_clk 约束建立/保持
-# -max: 数据最迟在 rx_clk 沿后 15 ns 到达 (100M MII 周期 40 ns, 留 25 ns 给内部路径)
-# -min: 数据最早在 rx_clk 沿后 2 ns 才变化 (保护保持时间, 避免过快翻转)
-# 数值按板级典型值估计, 建议按实际 PHY 数据手册的 tpd 与走线延时修正
-set_input_delay -clock { rx_clk } -max 15.000 [get_ports { mii_rxdv mii_rxd[*] }]
-set_input_delay -clock { rx_clk } -min 2.000 [get_ports { mii_rxdv mii_rxd[*] }]
 
 
 
@@ -79,13 +71,7 @@ set_input_delay -clock { rx_clk } -min 2.000 [get_ports { mii_rxdv mii_rxd[*] }]
 # Set Output Delay
 #**************************************************************
 
-# MII TX 源同步输出: FPGA 在 mii_txc(tx_clk) 上升沿驱动 mii_txd/mii_txen,
-# PHY 也在 tx_clk 上升沿采样 (边沿对齐), 故相对 tx_clk 约束建立/保持
-# -max: 数据最迟在 tx_clk 沿后 10 ns 到达 PHY 采样点 (PHY 建立时间, 周期 40 ns, 留 30 ns 给内部路径+走线)
-# -min: 数据最早在 tx_clk 沿后 2 ns 才变化 (保护 PHY 保持时间, 避免采样到跳变中的值)
-# 数值按板级典型值估计, 建议按实际 PHY 数据手册的 tsu/th 与走线延时修正
-set_output_delay -clock { tx_clk } -max 5.000 [get_ports { mii_txd[*] mii_txen }]
-set_output_delay -clock { tx_clk } -min 2.000 [get_ports { mii_txd[*] mii_txen }]
+
 
 
 
