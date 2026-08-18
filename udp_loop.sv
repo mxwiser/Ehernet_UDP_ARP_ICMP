@@ -3,7 +3,6 @@
 // udp_loop: EP4CE10 + LAN8720A UDP 回环 (AXIS 版本)
 // PC 发来的 UDP 数据经 eth_axis 解析后存入 FIFO, 回环发回 PC
 module udp_loop (
-	input	logic						rstn,
 	output  logic	     				led,
 	input	logic                       clk,
 	input	logic						rmii_clk,
@@ -13,6 +12,15 @@ module udp_loop (
 	output	logic	[1:0]				rmii_txdata,
 	output	logic						rmii_rst
 );
+
+	reg 			 					rstn;
+
+	always_ff@(posedge clk) begin
+		if(!rstn) begin
+			rstn <=1;
+		end
+	end
+
 
 	wire								udp_rxstart;
 	wire								udp_rxend;

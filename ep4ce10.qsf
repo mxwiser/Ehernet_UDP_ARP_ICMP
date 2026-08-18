@@ -68,6 +68,7 @@ set_global_assignment -name SEARCH_PATH ETH
 
 set_global_assignment -name SEARCH_PATH eth_axis
 
+set_location_assignment PIN_23 -to clk
 set_global_assignment -name SYSTEMVERILOG_FILE udp_loop.sv
 set_global_assignment -name SYSTEMVERILOG_FILE uart_axis/uart_tx.sv
 set_global_assignment -name SYSTEMVERILOG_FILE uart_axis/uart_rx.sv
@@ -89,7 +90,6 @@ set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Topset
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Topset
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Topset
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to clk
-set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to rstn
 set_location_assignment PIN_44 -to rmii_rst
 set_location_assignment PIN_46 -to rmii_txen
 set_location_assignment PIN_42 -to rmii_txdata[0]
