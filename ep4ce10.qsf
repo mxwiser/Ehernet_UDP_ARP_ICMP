@@ -78,7 +78,6 @@ set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/phy_rmii_axis.sv
 set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/phy_mii_axis.sv
 set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/tx_cdc_fifo_axis.sv
 set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/rx_cdc_fifo_axis.sv
-set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/dcfifo.sv
 set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/eth_axis.sv
 set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/udp.sv
 set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/udp_axis_tx.sv
@@ -108,4 +107,5 @@ set_location_assignment PIN_38 -to rmii_rxdata[1]
 set_location_assignment PIN_25 -to rmii_clk
 set_location_assignment PIN_28 -to led
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to led
+set_global_assignment -name QIP_FILE atdcfifo.qip
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Topset

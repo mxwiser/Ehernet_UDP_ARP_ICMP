@@ -43,10 +43,7 @@ wire  		 sys_empty;
 wire  	 	 sys_rdreq;
 wire[8:0]    sys_q;
 
-dcfifo#(
-	.DATA_WIDTH('d9),
-	.DEPTH('d1024)
-)u_sys_tx_fifo(
+atdcfifo u_sys_tx_fifo(
 	.wrclk		(clk),
 	.aclr		(!rstn),
 	.wrreq		(sys_marker_pending || sys_tx.tvalid),
@@ -85,10 +82,7 @@ wire  		 udp_empty;
 wire  	 	 udp_rdreq;
 wire[8:0]    udp_q;
 
-dcfifo#(
-	.DATA_WIDTH('d9),
-	.DEPTH('d1024)
-)u_udp_tx_fifo(
+atdcfifo u_udp_tx_fifo(
 	.wrclk		(clk),
 	.aclr		(!rstn),
 	.wrreq		(udp_marker_pending || udp_tx.tvalid),
