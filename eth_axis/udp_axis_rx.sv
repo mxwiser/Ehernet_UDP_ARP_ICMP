@@ -17,6 +17,7 @@ module udp_axis_rx #(
 	
 	output	reg								udp_rxstart,
 	output	reg								udp_rxend,
+	output	reg								udp_rxframe_done,		// complete Ethernet frame consumed, including padding and FCS
 	output	reg								udp_rxdv,
 	output	reg		[7:0]					udp_rxdata,
 	output	reg		[15:0]					udp_rxamount,			// total amount of data, including all pieces
@@ -796,6 +797,20 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		udp_rxend <= 1'b1;
 	end else begin
 		udp_rxend <= 1'b0;
+	end
+end
+
+// udp_rxend only marks the end of the real UDP payload.  Short frames can
+// still have Ethernet padding and four FCS bytes in the RX stream.  Commit the
+// frame only after the fourth FCS byte has been consumed.
+always @ ( posedge sys_clk or negedge sys_rst_n ) begin
+	if ( !sys_rst_n ) begin
+		udp_rxframe_done <= 1'b0;
+	end else if ( !is_frag && !flags[13] && state == UDP_CRC &&
+				  cnt_crc >= 2'd3 && s_mac_tvalid ) begin
+		udp_rxframe_done <= 1'b1;
+	end else begin
+		udp_rxframe_done <= 1'b0;
 	end
 end
 

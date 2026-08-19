@@ -22,7 +22,8 @@ module udp(
 	input								tx_clk,
 	// user port
 	output	wire						udp_rxstart,
-	output	wire						udp_rxend,
+	output	wire						udp_rxend, 
+	output	wire						udp_rxframe_done,
 	output	wire						udp_rxdv,
 	output	wire	[7:0]				udp_rxdata,
 	output	wire	[15:0]				udp_rxamount,				// total amount of data, including all pieces
@@ -75,6 +76,7 @@ udp_axis_rx#(
 	.m_axis_tx							( tx_sys			),
 	.udp_rxstart						( udp_rxstart		),
 	.udp_rxend							( udp_rxend			),
+	.udp_rxframe_done					( udp_rxframe_done	),
 	.udp_rxdv							( udp_rxdv			),
 	.udp_rxdata							( udp_rxdata		),
 	.udp_rxamount						( udp_rxamount		),

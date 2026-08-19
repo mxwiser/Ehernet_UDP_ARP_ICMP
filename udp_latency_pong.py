@@ -8,11 +8,13 @@ BOARD_PORT = 8090          #板子端口
 LOCAL_IP   = "10.10.1.11"  #电脑IP   （源IP）
 LOCAL_PORT = 9090          #电脑端口 （源端口）
 TIMEOUT_S  = 5             #等待回包超时
-INTERVAL_S = 0.1         #每10毫秒测一次
+INTERVAL_S = 0.005         #每10毫秒测一次
+PAYLOAD_SIZE = 8           #UDP payload size in bytes; minimum 8
 
 
 def ping_once(s, seq):
     payload = struct.pack(">II", 0xAA55AA55, seq)
+    payload += bytes(PAYLOAD_SIZE - len(payload))
     start = time.monotonic()
     s.sendto(payload, (BOARD_IP, BOARD_PORT))
     wrong = []
@@ -33,12 +35,18 @@ def ping_once(s, seq):
 
 
 def main():
+    if not 8 <= PAYLOAD_SIZE <= 65507:
+        raise ValueError("PAYLOAD_SIZE must be between 8 and 65507 bytes")
+
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((LOCAL_IP, LOCAL_PORT))
     s.setblocking(False)
 
-    print(f"UDP ping {BOARD_IP}:{BOARD_PORT}, interval {INTERVAL_S}s, timeout {TIMEOUT_S}s")
+    print(
+        f"UDP ping {BOARD_IP}:{BOARD_PORT}, payload {PAYLOAD_SIZE} bytes, "
+        f"interval {INTERVAL_S}s, timeout {TIMEOUT_S}s"
+    )
 
     seq = 1
     sent = 0
