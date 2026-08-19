@@ -126,13 +126,7 @@ end
 
 
 
-always @ ( posedge clk or negedge rstn ) begin
-	if ( !rstn ) begin
-		led <= 2'b0;
-	end else if ( udp_rxdv && ( udp_rxdata == 'hA1 ) ) begin
-		led <= ~led;
-	end
-end
+
 
 always @ ( posedge clk or negedge rstn ) begin
 	if (!rstn ) begin
