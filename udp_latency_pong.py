@@ -8,8 +8,8 @@ BOARD_PORT = 8090          #板子端口
 LOCAL_IP   = "10.10.1.11"  #电脑IP   （源IP）
 LOCAL_PORT = 9090          #电脑端口 （源端口）
 TIMEOUT_S  = 5             #等待回包超时
-INTERVAL_S = 0.005         #每10毫秒测一次
-PAYLOAD_SIZE = 8           #UDP payload size in bytes; minimum 8
+INTERVAL_S = 0.01         #单位/秒
+PAYLOAD_SIZE = 8        #UDP payload size in bytes; minimum 8 单位/字节
 
 
 def ping_once(s, seq):
