@@ -58,7 +58,7 @@ module user_dc_fifo_9b_1024d (
 		dcfifo_component.lpm_showahead = "OFF",
 		dcfifo_component.lpm_type = "dcfifo",
 		dcfifo_component.lpm_width = 9,
-		dcfifo_component.lpm_widthu = 8,
+		dcfifo_component.lpm_widthu = 10,
 		dcfifo_component.overflow_checking = "ON",
 		dcfifo_component.rdsync_delaypipe = 4,
 		dcfifo_component.read_aclr_synch = "OFF",
