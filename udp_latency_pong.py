@@ -7,7 +7,7 @@ BOARD_IP   = "10.10.1.10"  #板子IP
 BOARD_PORT = 9090          #板子端口
 LOCAL_IP   = "10.10.1.11"  #电脑IP   （源IP）
 LOCAL_PORT = 9090          #电脑端口 （源端口）
-TIMEOUT_S  = 0.5           #等待回包超时
+TIMEOUT_S  = 5           #等待回包超时
 INTERVAL_S = 0.03          #每10毫秒测一次
 
 
@@ -15,6 +15,7 @@ def ping_once(s, seq):
     payload = struct.pack(">II", 0xAA55AA55, seq)
     start = time.monotonic()
     s.sendto(payload, (BOARD_IP, BOARD_PORT))
+    wrong = []
 
     while time.monotonic() - start < TIMEOUT_S:
         readable, _, _ = select.select([s], [], [], TIMEOUT_S - (time.monotonic() - start))
@@ -22,11 +23,13 @@ def ping_once(s, seq):
             break
         data, addr = s.recvfrom(2048)
         if addr[0] != BOARD_IP or len(data) < 8:
+            wrong.append((addr, len(data), data))
             continue
         magic, rseq = struct.unpack(">II", data[:8])
         if magic == 0xAA55AA55 and rseq == seq:
-            return time.monotonic() - start
-    return None
+            return time.monotonic() - start, None
+        wrong.append((addr, len(data), data))
+    return None, wrong
 
 
 def main():
@@ -44,11 +47,23 @@ def main():
     deadline = time.monotonic()
     try:
         while True:
-            rtt = ping_once(s, seq)
+            rtt, wrong = ping_once(s, seq)
             sent += 1
             if rtt is None:
                 lost += 1
                 print(f"reply from {BOARD_IP}: seq={seq} timeout")
+                if wrong:
+                    print(f"  got {len(wrong)} wrong reply(s):")
+                    for addr, ln, data in wrong[:5]:
+                        head = data[:8].hex(" ")
+                        try:
+                            magic, rseq = struct.unpack(">II", data[:8])
+                            info = f"magic=0x{magic:08X} rseq={rseq}"
+                        except struct.error:
+                            info = "payload too short"
+                        print(f"    from {addr[0]}:{addr[1]} len={ln} {info} [{head}...]")
+                    if len(wrong) > 5:
+                        print(f"    ... and {len(wrong) - 5} more")
             else:
                 times.append(rtt)
                 ms = rtt * 1000

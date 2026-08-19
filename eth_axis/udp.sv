@@ -48,7 +48,7 @@ module udp(
 	axis								tx_udp();					// udp_axis_tx UDP data
 
 	
-	parameter		BOARD_MAC_ADDR			= 48'h51_12_22_33_44_55;
+	parameter		BOARD_MAC_ADDR			= 48'h50_12_22_33_44_55;
 	parameter		BOARD_IP_ADDR			= 32'h0A_0A_01_0A;			// 10.10.1.10
 
 
