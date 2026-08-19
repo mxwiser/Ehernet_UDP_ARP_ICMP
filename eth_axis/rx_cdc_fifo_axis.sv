@@ -27,10 +27,7 @@ module rx_cdc_fifo_axis(
 // ================================ 写侧: rx_clk 域 ================================
     assign s_rx.tready = !wr_full;
 
-    dcfifo #(
-        .DATA_WIDTH (9),
-        .DEPTH      (DEPTH)
-    ) u_rx_dcfifo (
+    user_dc_fifo_9b_1024d  u_rx_dcfifo (
         .wrclk   (rx_clk),
         .wrreq   (s_rx.tvalid && !wr_full),
         .data    ({s_rx.tlast, s_rx.tdata}),
