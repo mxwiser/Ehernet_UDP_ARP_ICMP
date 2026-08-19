@@ -23,7 +23,7 @@ module udp(
 	// user port
 	output	wire						udp_rxstart,
 	output	wire						udp_rxend,       // not include paddding
-	output	wire						udp_rxframe_done,// when padding fifo out
+	output	wire						udp_rxframe_done,// when padding fifo out. txstart必须在udp_rxframe_done后开始，不然会导致重叠，mac地址交错。
 	output	wire						udp_rxdv,
 	output	wire	[7:0]				udp_rxdata,
 	output	wire	[15:0]				udp_rxamount,				// total amount of data, including all pieces
