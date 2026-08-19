@@ -83,6 +83,7 @@ eth_axis #(
 	
 	reg		[7:0]							s_mac_tdata_d;
 	reg		[17:0]							state;
+	reg										frame_rejected;				// 帧被拒后禁止重新同步, 帧结束恢复
 	
 	reg		[47:0]							des_mac;
 	reg		[31:0]							des_ip;
@@ -125,11 +126,15 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		state <= UDP_IDLE;
 		test_count <= 0;
+		frame_rejected <= 1'b0;
 	end else begin
 		case ( state )
 			UDP_IDLE: begin
-				if ( cnt_pre >= 3'd6 && s_mac_tvalid && s_mac_tdata == 8'h55 ) begin
+				if ( !frame_rejected && cnt_pre >= 3'd6 && s_mac_tvalid && s_mac_tdata == 8'h55 ) begin
 					state <= SFD;
+				end else if ( !s_mac_tvalid ) begin
+					frame_rejected <= 1'b0;				// FIFO 排空 = 帧间空隙, 允许下一帧重新同步
+					state <= UDP_IDLE;
 				end else begin
 					state <= UDP_IDLE;
 				end
@@ -149,6 +154,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 						state <= UDP_TYPE;
 					end else begin
 						state <= UDP_IDLE;
+						frame_rejected <= 1'b1;
 					end
 				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
 					state <= UDP_IDLE;
@@ -162,6 +168,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 						state <= IP_TYPE;
 					end else begin
 						state <= UDP_IDLE;
+						frame_rejected <= 1'b1;
 					end
 				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
 					state <= UDP_IDLE;
@@ -175,6 +182,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 						state <= IP_LEN;
 					end else begin
 						state <= UDP_IDLE;
+						frame_rejected <= 1'b1;
 					end
 				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
 					state <= UDP_IDLE;
@@ -223,6 +231,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 					state <= IP_CHECK;
 				end else if ( s_mac_tvalid ) begin
 					state <= UDP_IDLE;
+					frame_rejected <= 1'b1;
 				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
 					state <= UDP_IDLE;
 				end else begin
@@ -265,6 +274,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			UDP_PORT: begin
 				if ( des_ip != BOARD_IP_ADDR ) begin
 					state <= UDP_IDLE;
+					frame_rejected <= 1'b1;
 				end else if ( cnt_udp_port >= 2'd3 && s_mac_tvalid ) begin
 					state <= UDP_LEN;
 				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
@@ -332,7 +342,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_pre <= 3'd0;
 	end else if ( state == UDP_IDLE ) begin
-		if ( s_mac_tvalid && s_mac_tdata == 8'h55 ) begin
+		if ( s_mac_tvalid && s_mac_tdata == 8'h55 && !frame_rejected ) begin
 			cnt_pre <= cnt_pre + 3'd1;
 		end else if ( s_mac_tvalid ) begin
 			cnt_pre <= 3'd0;

@@ -4,11 +4,11 @@ import time
 import select
 
 BOARD_IP   = "10.10.1.10"  #板子IP
-BOARD_PORT = 9090          #板子端口
+BOARD_PORT = 8090          #板子端口
 LOCAL_IP   = "10.10.1.11"  #电脑IP   （源IP）
 LOCAL_PORT = 9090          #电脑端口 （源端口）
-TIMEOUT_S  = 5           #等待回包超时
-INTERVAL_S = 0.03          #每10毫秒测一次
+TIMEOUT_S  = 5             #等待回包超时
+INTERVAL_S = 0.1         #每10毫秒测一次
 
 
 def ping_once(s, seq):
