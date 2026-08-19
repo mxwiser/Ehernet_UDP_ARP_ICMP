@@ -17,6 +17,7 @@ module udp_axis_rx #(
 	
 	output	reg								udp_rxstart,
 	output	reg								udp_rxend,
+	output	reg								udp_rxframe_done,		// complete Ethernet frame consumed, including padding and FCS
 	output	reg								udp_rxdv,
 	output	reg		[7:0]					udp_rxdata,
 	output	reg		[15:0]					udp_rxamount,			// total amount of data, including all pieces
@@ -83,6 +84,7 @@ eth_axis #(
 	
 	reg		[7:0]							s_mac_tdata_d;
 	reg		[17:0]							state;
+	reg										frame_rejected;				// 帧被拒后禁止重新同步, 帧结束恢复
 	
 	reg		[47:0]							des_mac;
 	reg		[31:0]							des_ip;
@@ -125,11 +127,15 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		state <= UDP_IDLE;
 		test_count <= 0;
+		frame_rejected <= 1'b0;
 	end else begin
 		case ( state )
 			UDP_IDLE: begin
-				if ( cnt_pre >= 3'd6 && s_mac_tvalid && s_mac_tdata == 8'h55 ) begin
+				if ( !frame_rejected && cnt_pre >= 3'd6 && s_mac_tvalid && s_mac_tdata == 8'h55 ) begin
 					state <= SFD;
+				end else if ( !s_mac_tvalid ) begin
+					frame_rejected <= 1'b0;				// FIFO 排空 = 帧间空隙, 允许下一帧重新同步
+					state <= UDP_IDLE;
 				end else begin
 					state <= UDP_IDLE;
 				end
@@ -149,6 +155,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 						state <= UDP_TYPE;
 					end else begin
 						state <= UDP_IDLE;
+						frame_rejected <= 1'b1;
 					end
 				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
 					state <= UDP_IDLE;
@@ -162,6 +169,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 						state <= IP_TYPE;
 					end else begin
 						state <= UDP_IDLE;
+						frame_rejected <= 1'b1;
 					end
 				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
 					state <= UDP_IDLE;
@@ -175,6 +183,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 						state <= IP_LEN;
 					end else begin
 						state <= UDP_IDLE;
+						frame_rejected <= 1'b1;
 					end
 				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
 					state <= UDP_IDLE;
@@ -223,6 +232,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 					state <= IP_CHECK;
 				end else if ( s_mac_tvalid ) begin
 					state <= UDP_IDLE;
+					frame_rejected <= 1'b1;
 				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
 					state <= UDP_IDLE;
 				end else begin
@@ -265,6 +275,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			UDP_PORT: begin
 				if ( des_ip != BOARD_IP_ADDR ) begin
 					state <= UDP_IDLE;
+					frame_rejected <= 1'b1;
 				end else if ( cnt_udp_port >= 2'd3 && s_mac_tvalid ) begin
 					state <= UDP_LEN;
 				end else if ( !s_mac_tlast ) begin								// frame ends, back to idle
@@ -332,7 +343,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		cnt_pre <= 3'd0;
 	end else if ( state == UDP_IDLE ) begin
-		if ( s_mac_tvalid && s_mac_tdata == 8'h55 ) begin
+		if ( s_mac_tvalid && s_mac_tdata == 8'h55 && !frame_rejected ) begin
 			cnt_pre <= cnt_pre + 3'd1;
 		end else if ( s_mac_tvalid ) begin
 			cnt_pre <= 3'd0;
@@ -646,9 +657,9 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		des_port <= 16'h0;
 	end else if ( state == UDP_PORT ) begin
-		if ( cnt_udp_port == 2'd0 && s_mac_tvalid ) begin
+		if ( cnt_udp_port == 2'd2 && s_mac_tvalid ) begin
 			des_port <= { s_mac_tdata, des_port[7:0] };
-		end else if ( cnt_udp_port == 2'd1 && s_mac_tvalid ) begin
+		end else if ( cnt_udp_port == 2'd3 && s_mac_tvalid ) begin
 			des_port <= { des_port[15:8], s_mac_tdata } ;
 		end else begin
 			des_port <= des_port;
@@ -786,6 +797,20 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		udp_rxend <= 1'b1;
 	end else begin
 		udp_rxend <= 1'b0;
+	end
+end
+
+// udp_rxend only marks the end of the real UDP payload.  Short frames can
+// still have Ethernet padding and four FCS bytes in the RX stream.  Commit the
+// frame only after the fourth FCS byte has been consumed.
+always @ ( posedge sys_clk or negedge sys_rst_n ) begin
+	if ( !sys_rst_n ) begin
+		udp_rxframe_done <= 1'b0;
+	end else if ( !is_frag && !flags[13] && state == UDP_CRC &&
+				  cnt_crc >= 2'd3 && s_mac_tvalid ) begin
+		udp_rxframe_done <= 1'b1;
+	end else begin
+		udp_rxframe_done <= 1'b0;
 	end
 end
 

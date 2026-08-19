@@ -1,43 +1,26 @@
-## Generated SDC file "ep4ce10.out.sdc"
-
-## Copyright (C) 2025  Altera Corporation. All rights reserved.
-## Your use of Altera Corporation's design tools, logic functions 
-## and other software and tools, and any partner logic 
-## functions, and any output files from any of the foregoing 
-## (including device programming or simulation files), and any 
-## associated documentation or information are expressly subject 
-## to the terms and conditions of the Altera Program License 
-## Subscription Agreement, the Altera Quartus Prime License Agreement,
-## the Altera IP License Agreement, or other applicable license
-## agreement, including, without limitation, that your use is for
-## the sole purpose of programming logic devices manufactured by
-## Altera and sold by Altera or its authorized distributors.  Please
-## refer to the Altera Software License Subscription Agreements 
-## on the Quartus Prime software download page.
-
-
-## VENDOR  "Altera"
-## PROGRAM "Quartus Prime"
-## VERSION "Version 25.1std.0 Build 1129 10/21/2025 SC Lite Edition"
-
-## DATE    "Tue Aug 11 11:22:12 2026"
-
-##
-## DEVICE  "EP4CE10F17C8"
-##
-
-
-#**************************************************************
-# Time Information
-#**************************************************************
+# EP4CE10 + RTL8201F 100BASE-TX MII timing constraints
+#
+# Reference: RTL8201F/RTL8201FL/RTL8201FN Datasheet, Rev. 1.4
+#   Table 51: MII Transmission Cycle Timing
+#   Table 52: MII Reception Cycle Timing
+#
+# The values below are the PHY pin timing limits. PCB trace delays default to
+# 0 ns because no routed trace-length data is available. Replace the PCB delay
+# variables below with measured min/max values when they are known.
 
 set_time_format -unit ns -decimal_places 3
 
+# -----------------------------------------------------------------------------
+# Clocks
+# -----------------------------------------------------------------------------
 
 
-#**************************************************************
-# Create Clock
-#**************************************************************
+
+# RTL8201F MII clocks are 25 MHz at 100 Mbps. TXC and RXC are PHY outputs.
+# The datasheet specifies a nominal 40 ns period and 14..26 ns high/low time.
+# Only rising edges are used by the current RTL, so the nominal waveform is
+# sufficient for the rising-edge setup/hold checks.
+
 
 create_clock -name {clk50m} -period 20.000 -waveform { 0.000 10.000 } [get_ports {rmii_clk}]
 create_clock -name {sys_clk} -period 20.000 -waveform { 0.000 10.000 } [get_ports {clk}]
@@ -46,23 +29,43 @@ create_clock -name {sys_clk} -period 20.000 -waveform { 0.000 10.000 } [get_port
 # Create Generated Clock
 #**************************************************************
 
+# The board oscillator, MII TXC, and MII RXC have no specified phase
+# relationship. All transfers between these domains use asynchronous FIFOs.
 
 
-#**************************************************************
-# Set Clock Latency
-#**************************************************************
-
-
-
-#**************************************************************
-# Set Clock Uncertainty
-#**************************************************************
+# -----------------------------------------------------------------------------
+# RTL8201F 100 Mbps MII timing limits
+# -----------------------------------------------------------------------------
 
 
 
-#**************************************************************
-# Set Input Delay
-#**************************************************************
+# PCB flight times at minimum/maximum operating conditions.
+# RXCLK/RXD travel from PHY to FPGA. TXCLK travels from PHY to FPGA, while
+# TXD/TXEN travel back from FPGA to PHY.
+
+
+# -----------------------------------------------------------------------------
+# MII receive: RTL8201F -> FPGA
+# -----------------------------------------------------------------------------
+
+# Table 52 guarantees RXD/RXDV valid for 10 ns before and 10 ns after each
+# RXCLK rising edge. Expressed as an arrival window from the preceding rising
+# edge, this is:
+#   earliest transition = RX hold                         = 10 ns
+#   latest arrival       = period - RX setup             = 30 ns
+# PCB terms account for the relative PHY-to-FPGA clock/data flight times.
+
+
+# -----------------------------------------------------------------------------
+# MII transmit: FPGA -> RTL8201F
+# -----------------------------------------------------------------------------
+
+# Table 51 requires TXD/TXEN setup >= 10 ns and hold >= 0 ns at the TXCLK
+# rising edge. For set_output_delay, -max is the receiver setup requirement;
+# -min is the negative receiver hold requirement. Since TXCLK first travels
+# PHY-to-FPGA and TXD/TXEN then travel FPGA-to-PHY, both PCB flight times are
+# included in the external output-delay model.
+
 
 
 
@@ -109,3 +112,5 @@ create_clock -name {sys_clk} -period 20.000 -waveform { 0.000 10.000 } [get_port
 # Set Input Transition
 #**************************************************************
 
+# rstn is intentionally asynchronous in the RTL. UART and inactive MDIO/MDC
+# paths are outside the RTL8201F MII source-synchronous interface constraints.
