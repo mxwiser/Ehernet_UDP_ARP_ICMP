@@ -71,6 +71,9 @@ udp		u1_udp (
 	.udp_txreq							( udp_txreq		),
 	.udp_txbusy							( udp_txbusy	)
 );
+// txstart必须在udp_rxframe_done后开始，不然会导致重叠，mac地址交错，
+// 因为测试程序目前没有把MAC和IP信息储存进fifo，而是根据实时接收的刷新的地址。
+
 
 // 帧数据 FIFO: 载荷字节按到达顺序排队 (wrreq=udp_rxdv, rdreq=udp_txreq)
 // 帧元数据 FIFO: 完整 Ethernet 帧（含 padding/FCS）接收完毕后才入队。

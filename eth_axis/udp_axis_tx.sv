@@ -89,6 +89,26 @@ module udp_axis_tx #(
 	
 	reg		[15:0]							udp_rest;						// data length of rest fragment data
 	reg										udp_continue;
+	reg		[47:0]							pc_mac_addr_latched;
+	reg		[31:0]							pc_ip_addr_latched;
+	reg		[15:0]							pc_port_latched;
+	reg		[15:0]							board_port_latched;
+
+// Capture all per-packet addressing metadata when a new UDP transfer is accepted.
+// Keep it unchanged for the whole transfer, including every IP fragment.
+always @ ( posedge sys_clk or negedge sys_rst_n ) begin
+	if ( !sys_rst_n ) begin
+		pc_mac_addr_latched <= 48'd0;
+		pc_ip_addr_latched  <= 32'd0;
+		pc_port_latched     <= 16'd0;
+		board_port_latched  <= 16'd0;
+	end else if ( udp_txstart && !udp_txbusy ) begin
+		pc_mac_addr_latched <= pc_mac_addr;
+		pc_ip_addr_latched  <= pc_ip_addr;
+		pc_port_latched     <= pc_port;
+		board_port_latched  <= board_port;
+	end
+end
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
@@ -422,7 +442,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		ip_checksum <= 32'h0;
 	end else if ( state == IP_SPLIT && cnt_ip_split && gmii_txen && !gmii_txbusy ) begin
-		ip_checksum <= 16'h4500 + ip_data_len + ip_id + 16'h0000 + 16'h4011 + BOARD_IP_ADDR[31:16] + BOARD_IP_ADDR[15:0] + pc_ip_addr[31:16] + pc_ip_addr[15:0];
+		ip_checksum <= 16'h4500 + ip_data_len + ip_id + 16'h0000 + 16'h4011 + BOARD_IP_ADDR[31:16] + BOARD_IP_ADDR[15:0] + pc_ip_addr_latched[31:16] + pc_ip_addr_latched[15:0];
 	end else if ( state == IP_TTL ) begin
 		ip_checksum <= ip_checksum[31:16] + ip_checksum[15:0];
 	end else begin
@@ -603,22 +623,22 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			if ( cnt_package_head == 3'd6 && gmii_txen && !gmii_txbusy ) begin
 				gmii_txdata <= 8'hD5;
 			end else if ( cnt_package_head == 3'd7 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_mac_addr[47:40];
+				gmii_txdata <= pc_mac_addr_latched[47:40];
 			end else begin
 				gmii_txdata <= gmii_txdata;
 			end
 		end
 		MAC_ADDR: begin
 			if ( cnt_mac_addr == 4'd0 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_mac_addr[39:32];
+				gmii_txdata <= pc_mac_addr_latched[39:32];
 			end else if ( cnt_mac_addr == 4'd1 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_mac_addr[31:24];
+				gmii_txdata <= pc_mac_addr_latched[31:24];
 			end else if ( cnt_mac_addr == 4'd2 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_mac_addr[23:16];
+				gmii_txdata <= pc_mac_addr_latched[23:16];
 			end else if ( cnt_mac_addr == 4'd3 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_mac_addr[15:8];
+				gmii_txdata <= pc_mac_addr_latched[15:8];
 			end else if ( cnt_mac_addr == 4'd4 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_mac_addr[7:0];
+				gmii_txdata <= pc_mac_addr_latched[7:0];
 			end else if ( cnt_mac_addr == 4'd5 && gmii_txen && !gmii_txbusy ) begin
 				gmii_txdata <= BOARD_MAC_ADDR[47:40];
 			end else if ( cnt_mac_addr == 4'd6 && gmii_txen && !gmii_txbusy ) begin
@@ -713,28 +733,28 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end else if ( cnt_ip_addr == 3'd2 && gmii_txen && !gmii_txbusy ) begin
 				gmii_txdata <= BOARD_IP_ADDR[7:0];
 			end else if ( cnt_ip_addr == 3'd3 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_ip_addr[31:24];
+				gmii_txdata <= pc_ip_addr_latched[31:24];
 			end else if ( cnt_ip_addr == 3'd4 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_ip_addr[23:16];
+				gmii_txdata <= pc_ip_addr_latched[23:16];
 			end else if ( cnt_ip_addr == 3'd5 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_ip_addr[15:8];
+				gmii_txdata <= pc_ip_addr_latched[15:8];
 			end else if ( cnt_ip_addr == 3'd6 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_ip_addr[7:0];
+				gmii_txdata <= pc_ip_addr_latched[7:0];
 			end else if ( cnt_ip_addr == 3'd7 && gmii_txen && !gmii_txbusy && udp_continue ) begin
 				gmii_txdata <= udp_txdata;
 			end else if ( cnt_ip_addr == 3'd7 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= board_port[15:8];
+				gmii_txdata <= board_port_latched[15:8];
 			end else begin
 				gmii_txdata <= gmii_txdata;
 			end
 		end
 		UDP_PORT: begin
 			if ( cnt_udp_port == 2'd0 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= board_port[7:0];
+				gmii_txdata <= board_port_latched[7:0];
 			end else if ( cnt_udp_port == 2'd1 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_port[15:8];
+				gmii_txdata <= pc_port_latched[15:8];
 			end else if ( cnt_udp_port == 2'd2 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= pc_port[7:0];
+				gmii_txdata <= pc_port_latched[7:0];
 			end else if ( cnt_udp_port == 2'd3 && gmii_txen && !gmii_txbusy ) begin
 				gmii_txdata <= udp_len[15:8];
 			end else begin
