@@ -1,125 +1,98 @@
-## Generated SDC file "ep4ce10.out.sdc"
-
-## Copyright (C) 2025  Altera Corporation. All rights reserved.
-## Your use of Altera Corporation's design tools, logic functions 
-## and other software and tools, and any partner logic 
-## functions, and any output files from any of the foregoing 
-## (including device programming or simulation files), and any 
-## associated documentation or information are expressly subject 
-## to the terms and conditions of the Altera Program License 
-## Subscription Agreement, the Altera Quartus Prime License Agreement,
-## the Altera IP License Agreement, or other applicable license
-## agreement, including, without limitation, that your use is for
-## the sole purpose of programming logic devices manufactured by
-## Altera and sold by Altera or its authorized distributors.  Please
-## refer to the Altera Software License Subscription Agreements 
-## on the Quartus Prime software download page.
-
-
-## VENDOR  "Altera"
-## PROGRAM "Quartus Prime"
-## VERSION "Version 25.1std.0 Build 1129 10/21/2025 SC Lite Edition"
-
-## DATE    "Tue Aug 11 11:22:12 2026"
-
-##
-## DEVICE  "EP4CE10F17C8"
-##
-
-
-#**************************************************************
-# Time Information
-#**************************************************************
+# EP4CE10 + RTL8201F 100BASE-TX MII timing constraints
+#
+# Reference: RTL8201F/RTL8201FL/RTL8201FN Datasheet, Rev. 1.4
+#   Table 51: MII Transmission Cycle Timing
+#   Table 52: MII Reception Cycle Timing
+#
+# The values below are the PHY pin timing limits. PCB trace delays default to
+# 0 ns because no routed trace-length data is available. Replace the PCB delay
+# variables below with measured min/max values when they are known.
 
 set_time_format -unit ns -decimal_places 3
 
+# -----------------------------------------------------------------------------
+# Clocks
+# -----------------------------------------------------------------------------
 
+create_clock -name {sys_clk} -period 20.000 -waveform {0.000 10.000} [get_ports {clk}]
 
-#**************************************************************
-# Create Clock
-#**************************************************************
+# RTL8201F MII clocks are 25 MHz at 100 Mbps. TXC and RXC are PHY outputs.
+# The datasheet specifies a nominal 40 ns period and 14..26 ns high/low time.
+# Only rising edges are used by the current RTL, so the nominal waveform is
+# sufficient for the rising-edge setup/hold checks.
+create_clock -name {tx_clk} -period 40.000 -waveform {0.000 20.000} [get_ports {mii_txc}]
+create_clock -name {rx_clk} -period 40.000 -waveform {0.000 20.000} [get_ports {mii_rxc}]
 
-#create_clock -name {clk50m} -period 20.000 -waveform { 0.000 10.000 } [get_ports {rmii_clk}]
-create_clock -name {sys_clk} -period 20.000 -waveform { 0.000 10.000 } [get_ports {clk}]
-create_clock -name {tx_clk} -period 40.000 -waveform { 0.000 20.000 } [get_ports {mii_txc}]
-create_clock -name {rx_clk} -period 40.000 -waveform { 0.000 20.000 } [get_ports {mii_rxc}]
-#**************************************************************
-# Create Generated Clock
-#**************************************************************
+# Let TimeQuest add the device/model clock uncertainty for every corner.
+derive_clock_uncertainty
 
+# The board oscillator, MII TXC, and MII RXC have no specified phase
+# relationship. All transfers between these domains use asynchronous FIFOs.
+set_clock_groups -asynchronous \
+    -group [get_clocks {sys_clk}] \
+    -group [get_clocks {tx_clk}] \
+    -group [get_clocks {rx_clk}]
 
+# -----------------------------------------------------------------------------
+# RTL8201F 100 Mbps MII timing limits
+# -----------------------------------------------------------------------------
 
-#**************************************************************
-# Set Clock Latency
-#**************************************************************
+set MII_PERIOD_NS          40.000
+set MII_RX_SETUP_NS        10.000
+set MII_RX_HOLD_NS         10.000
+set MII_TX_SETUP_NS        10.000
+set MII_TX_HOLD_NS          0.000
 
+# PCB flight times at minimum/maximum operating conditions.
+# RXCLK/RXD travel from PHY to FPGA. TXCLK travels from PHY to FPGA, while
+# TXD/TXEN travel back from FPGA to PHY.
+set MII_RX_CLK_PCB_MIN_NS    0.000
+set MII_RX_CLK_PCB_MAX_NS    0.000
+set MII_RX_DATA_PCB_MIN_NS   0.000
+set MII_RX_DATA_PCB_MAX_NS   0.000
+set MII_TX_CLK_PCB_MIN_NS    0.000
+set MII_TX_CLK_PCB_MAX_NS    0.000
+set MII_TX_DATA_PCB_MIN_NS   0.000
+set MII_TX_DATA_PCB_MAX_NS   0.000
 
+# -----------------------------------------------------------------------------
+# MII receive: RTL8201F -> FPGA
+# -----------------------------------------------------------------------------
 
-#**************************************************************
-# Set Clock Uncertainty
-#**************************************************************
+# Table 52 guarantees RXD/RXDV valid for 10 ns before and 10 ns after each
+# RXCLK rising edge. Expressed as an arrival window from the preceding rising
+# edge, this is:
+#   earliest transition = RX hold                         = 10 ns
+#   latest arrival       = period - RX setup             = 30 ns
+# PCB terms account for the relative PHY-to-FPGA clock/data flight times.
+set_input_delay -clock [get_clocks {rx_clk}] -max \
+    [expr {$MII_PERIOD_NS - $MII_RX_SETUP_NS + \
+           $MII_RX_DATA_PCB_MAX_NS - $MII_RX_CLK_PCB_MIN_NS}] \
+    [get_ports {mii_rxdv mii_rxd[*]}]
 
+set_input_delay -clock [get_clocks {rx_clk}] -min \
+    [expr {$MII_RX_HOLD_NS + $MII_RX_DATA_PCB_MIN_NS - \
+           $MII_RX_CLK_PCB_MAX_NS}] \
+    [get_ports {mii_rxdv mii_rxd[*]}]
 
+# -----------------------------------------------------------------------------
+# MII transmit: FPGA -> RTL8201F
+# -----------------------------------------------------------------------------
 
-#**************************************************************
-# Set Input Delay
-#**************************************************************
+# Table 51 requires TXD/TXEN setup >= 10 ns and hold >= 0 ns at the TXCLK
+# rising edge. For set_output_delay, -max is the receiver setup requirement;
+# -min is the negative receiver hold requirement. Since TXCLK first travels
+# PHY-to-FPGA and TXD/TXEN then travel FPGA-to-PHY, both PCB flight times are
+# included in the external output-delay model.
+set_output_delay -clock [get_clocks {tx_clk}] -max \
+    [expr {$MII_TX_SETUP_NS + $MII_TX_CLK_PCB_MAX_NS + \
+           $MII_TX_DATA_PCB_MAX_NS}] \
+    [get_ports {mii_txd[*] mii_txen}]
 
-# MII RX 源同步输入: PHY 以 mii_rxc(rx_clk) 为源同步时钟输出 mii_rxd/mii_rxdv,
-# FPGA 内部在 rx_clk 上升沿采样, 故相对 rx_clk 约束建立/保持
-# -max: 数据最迟在 rx_clk 沿后 15 ns 到达 (100M MII 周期 40 ns, 留 25 ns 给内部路径)
-# -min: 数据最早在 rx_clk 沿后 2 ns 才变化 (保护保持时间, 避免过快翻转)
-# 数值按板级典型值估计, 建议按实际 PHY 数据手册的 tpd 与走线延时修正
-set_input_delay -clock { rx_clk } -max 15.000 [get_ports { mii_rxdv mii_rxd[*] }]
-set_input_delay -clock { rx_clk } -min 2.000 [get_ports { mii_rxdv mii_rxd[*] }]
+set_output_delay -clock [get_clocks {tx_clk}] -min \
+    [expr {$MII_TX_CLK_PCB_MIN_NS + $MII_TX_DATA_PCB_MIN_NS - \
+           $MII_TX_HOLD_NS}] \
+    [get_ports {mii_txd[*] mii_txen}]
 
-
-
-#**************************************************************
-# Set Output Delay
-#**************************************************************
-
-# MII TX 源同步输出: FPGA 在 mii_txc(tx_clk) 上升沿驱动 mii_txd/mii_txen,
-# PHY 也在 tx_clk 上升沿采样 (边沿对齐), 故相对 tx_clk 约束建立/保持
-# -max: 数据最迟在 tx_clk 沿后 10 ns 到达 PHY 采样点 (PHY 建立时间, 周期 40 ns, 留 30 ns 给内部路径+走线)
-# -min: 数据最早在 tx_clk 沿后 2 ns 才变化 (保护 PHY 保持时间, 避免采样到跳变中的值)
-# 数值按板级典型值估计, 建议按实际 PHY 数据手册的 tsu/th 与走线延时修正
-set_output_delay -clock { tx_clk } -max 5.000 [get_ports { mii_txd[*] mii_txen }]
-set_output_delay -clock { tx_clk } -min 2.000 [get_ports { mii_txd[*] mii_txen }]
-
-
-
-#**************************************************************
-# Set Clock Groups
-#**************************************************************
-
-
-
-#**************************************************************
-# Set False Path
-#**************************************************************
-
-
-
-#**************************************************************
-# Set Multicycle Path
-#**************************************************************
-
-
-
-#**************************************************************
-# Set Maximum Delay
-#**************************************************************
-
-
-
-#**************************************************************
-# Set Minimum Delay
-#**************************************************************
-
-
-
-#**************************************************************
-# Set Input Transition
-#**************************************************************
-
+# rstn is intentionally asynchronous in the RTL. UART and inactive MDIO/MDC
+# paths are outside the RTL8201F MII source-synchronous interface constraints.
