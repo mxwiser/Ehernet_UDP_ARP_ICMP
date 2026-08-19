@@ -22,8 +22,8 @@ module udp(
 	input								tx_clk,
 	// user port
 	output	wire						udp_rxstart,
-	output	wire						udp_rxend, 
-	output	wire						udp_rxframe_done,
+	output	wire						udp_rxend,       // not include paddding
+	output	wire						udp_rxframe_done,// when padding fifo out
 	output	wire						udp_rxdv,
 	output	wire	[7:0]				udp_rxdata,
 	output	wire	[15:0]				udp_rxamount,				// total amount of data, including all pieces
