@@ -54,7 +54,7 @@ module user_dc_fifo_9b_1024d (
 	defparam
 		dcfifo_component.intended_device_family = "Cyclone IV E",
 		dcfifo_component.lpm_hint = "MAXIMUM_DEPTH=1024",
-		dcfifo_component.lpm_numwords = 256,
+		dcfifo_component.lpm_numwords = 1024,
 		dcfifo_component.lpm_showahead = "OFF",
 		dcfifo_component.lpm_type = "dcfifo",
 		dcfifo_component.lpm_width = 9,
