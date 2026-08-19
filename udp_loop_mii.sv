@@ -1,21 +1,28 @@
 `include "axis.svh"
 
-// udp_loop: EP4CE10 + LAN8720A UDP 回环 (AXIS 版本)
+
 // PC 发来的 UDP 数据经 eth_axis 解析后存入 FIFO, 回环发回 PC
-module udp_loop (
+module udp_loop_mii (
 	output  logic                       uart_txd,
 	input   logic                       uart_rxd,
 	input	logic						rstn,
 	output  logic	[1:0]				led,
 	input	logic                       clk,
-	input	logic						rmii_clk,
-	input	logic					   	rmii_rxdv,
-	input	logic	[1:0]				rmii_rxdata,
-	output	logic						rmii_txen,
-	output	logic	[1:0]				rmii_txdata,
-	output	logic						rmii_rst
-);
 
+	//smi   
+	output  logic  						phy_rst,
+	output  logic                       mdc,
+	inout   logic						mdio,
+	//MII
+	input   logic   					mii_rxdv,
+	input   logic	[3:0]				mii_rxd,
+	input	logic						mii_rxc,
+	output	logic						mii_txen,
+	output  logic	[3:0]				mii_txd,
+	input   logic   					mii_txc
+
+);
+    assign  phy_rst = rstn;
 	wire								udp_rxstart;
 	wire								udp_rxend;
 	wire								udp_rxframe_done;
@@ -32,16 +39,16 @@ module udp_loop (
     axis								m_phy_rx();
     axis								s_phy_tx();
 
-phy_rmii_axis							u_phy_rmii_axis (
+phy_mii_axis							u_phy_mii_axis (
 	.rstn								( rstn		),
-	.rmii_clk							( rmii_clk			),
-	.rmii_crs_dv						( rmii_rxdv			),
-	.rmii_rxdata						( rmii_rxdata		),
-	.rmii_txen							( rmii_txen			),
-	.rmii_txdata						( rmii_txdata		),
-	.rmii_rst							( rmii_rst			),
-	.m_rmii_rx_axis_net					( m_phy_rx			),
-	.s_rmii_tx_axis_net					( s_phy_tx     		)
+	.tx_clk								( mii_txc	),
+	.txd								( mii_txd	),
+	.txen								( mii_txen	),
+	.rx_clk								( mii_rxc	),
+	.rxd								( mii_rxd	),
+	.rxdv								( mii_rxdv	),
+	.m_phy_rx							( m_phy_rx	),
+	.s_phy_tx							( s_phy_tx	)
 );
 
 udp		u1_udp (
@@ -49,8 +56,8 @@ udp		u1_udp (
 	.sys_clk							( clk			),
 	.m_phy_rx							( m_phy_rx      ),
 	.s_phy_tx                           ( s_phy_tx      ),
-	.tx_clk								( rmii_clk		),
-	.rx_clk								( rmii_clk      ),	
+	.tx_clk								( mii_txc		),
+	.rx_clk								( mii_rxc		),	
 	.udp_rxstart						( udp_rxstart	),
 	.udp_rxend							( udp_rxend		),
 	.udp_rxframe_done					( udp_rxframe_done),
@@ -64,6 +71,9 @@ udp		u1_udp (
 	.udp_txreq							( udp_txreq		),
 	.udp_txbusy							( udp_txbusy	)
 );
+// txstart必须在udp_rxframe_done后开始，不然会导致重叠，mac地址交错，
+// 因为测试程序目前没有把MAC和IP信息储存进fifo，而是根据实时接收的刷新的地址。
+
 
 // 帧数据 FIFO: 载荷字节按到达顺序排队 (wrreq=udp_rxdv, rdreq=udp_txreq)
 // 帧元数据 FIFO: 完整 Ethernet 帧（含 padding/FCS）接收完毕后才入队。
