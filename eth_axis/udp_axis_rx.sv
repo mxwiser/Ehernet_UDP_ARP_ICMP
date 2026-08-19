@@ -646,9 +646,9 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		des_port <= 16'h0;
 	end else if ( state == UDP_PORT ) begin
-		if ( cnt_udp_port == 2'd0 && s_mac_tvalid ) begin
+		if ( cnt_udp_port == 2'd2 && s_mac_tvalid ) begin
 			des_port <= { s_mac_tdata, des_port[7:0] };
-		end else if ( cnt_udp_port == 2'd1 && s_mac_tvalid ) begin
+		end else if ( cnt_udp_port == 2'd3 && s_mac_tvalid ) begin
 			des_port <= { des_port[15:8], s_mac_tdata } ;
 		end else begin
 			des_port <= des_port;

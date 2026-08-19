@@ -582,9 +582,9 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		des_port <= 16'h0;
 	end else if ( state == UDP_PORT ) begin
-		if ( cnt_udp_port == 2'd0 && gmii_rxdv ) begin
+		if ( cnt_udp_port == 2'd2 && gmii_rxdv ) begin
 			des_port <= { gmii_rxdata, des_port[7:0] };
-		end else if ( cnt_udp_port == 2'd1 && gmii_rxdv ) begin
+		end else if ( cnt_udp_port == 2'd3 && gmii_rxdv ) begin
 			des_port <= { des_port[15:8], gmii_rxdata } ;
 		end else begin
 			des_port <= des_port;
