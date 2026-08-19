@@ -13,7 +13,7 @@ module rx_cdc_fifo_axis(
     axis.slave s_rx,
     axis.master m_rx
 );
-    parameter DEPTH = 512;
+
 
     logic        wr_full;
     logic        rd_empty;
@@ -28,7 +28,7 @@ module rx_cdc_fifo_axis(
     assign s_rx.tready = !wr_full;
 
 
-    atdcfifo atdcfifo_inst (
+    user_dc_fifo_9b_1024d rx_user_dc_fifo_9b_1024d (
         .wrclk   (rx_clk),
         .wrreq   (s_rx.tvalid && !wr_full),
         .data    ({s_rx.tlast, s_rx.tdata}),
