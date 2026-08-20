@@ -72,54 +72,6 @@ udp	 u1_udp (
 	pc_head                             udp_rx_head();
 	pc_head								udp_tx_head();
 
-	wire								rx_fifo_full;
-	wire								amt_fifo_empty;
-	wire								amt_fifo_full;
-	reg									rx_drop;						// 溢出后丢弃本帧剩余数据, 帧结束恢复
-	wire								rx_fifo_clear		= ( udp_rxdv && rx_fifo_full ) || ( udp_rxframe_done && amt_fifo_full );
-	wire								amt_rdreq			= udp_txstart && !udp_txbusy;			// TX 启动时出队一个帧长度
-	wire								amt_wrreq			= udp_rxframe_done && !rx_drop;
-
-	assign		udp_txstart		= !amt_fifo_empty;
-
-fifo#(
-	.DATA_WIDTH('d8),
-	.DEPTH('d2048)
-)							u2_fifo_data (
-	.rstn								( rstn		),
-	.clock								( clk			),
-	.clear								( rx_fifo_clear	),
-	.data								( udp_rxdata	),
-	.rdreq								( udp_txreq		),
-	.wrreq								( udp_rxdv && !rx_drop ),
-	.full								( rx_fifo_full	),
-	.q									( udp_txdata	)
-);
-
-fifo#(
-	.DATA_WIDTH('d16),
-	.DEPTH('d64)
-)							u3_fifo_amt (
-	.rstn								( rstn		),
-	.clock								( clk			),
-	.clear								( rx_fifo_clear	),
-	.data								( udp_rxamount	),
-	.rdreq								( amt_rdreq		),
-	.wrreq								( amt_wrreq		),
-	.empty								( amt_fifo_empty),
-	.full								( amt_fifo_full	),
-	.q									( udp_txamount	)
-);
-
-always @ ( posedge clk or negedge rstn ) begin
-	if ( !rstn ) begin
-		rx_drop <= 1'b0;
-	end else if ( rx_fifo_clear ) begin
-		rx_drop <= 1'b1;					// 溢出: 丢弃本帧剩余数据
-	end else if ( udp_rxframe_done ) begin
-		rx_drop <= 1'b0;					// 帧结束, 恢复
-	end
-end
 
 
 //user test
