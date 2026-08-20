@@ -81,19 +81,7 @@ pc_head                             	udp_rx_head();
 pc_head									udp_tx_head();
 
 
-fifo#(
-	.DATA_WIDTH('d8),
-	.DEPTH('d2048)
-)							u2_fifo_data (
-	.rstn								( rstn		),
-	.clock								( clk			),
-	.clear								( rx_fifo_clear	),
-	.data								( udp_rxdata	),
-	.rdreq								( udp_txreq		),
-	.wrreq								( udp_rxdv ),
-	.full								( rx_fifo_full	),
-	.q									( udp_txdata	)
-);
+
 
 
 
