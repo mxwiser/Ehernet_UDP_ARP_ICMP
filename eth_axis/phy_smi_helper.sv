@@ -4,7 +4,7 @@ module phy_smi_helper(
     input  logic mdclk,
     output logic phyrst,
     output logic phy_rdy,
-    inout  logic mdio
+    inout  wire mdio
 );
 assign phyrst = rphyrst;
 logic rphyrst;

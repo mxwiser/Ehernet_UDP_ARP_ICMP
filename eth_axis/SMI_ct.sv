@@ -4,7 +4,7 @@ module SMI_ct(
     input [15:0] data,
     output logic ready, ack,
     output logic [15:0] smi_data,
-    inout logic mdio
+    inout wire mdio
 );
 
     byte ct;

@@ -7,7 +7,7 @@ module top (
 	output  logic                       led,
 	input	logic                       clk,
 	output  logic                       mdc,
-	inout   logic                       mdio,
+	inout   wire                        mdio,
 	input	logic						rmii_clk,
 	input	logic					   	rmii_rxdv,
 	input	logic	[1:0]				rmii_rxdata,
@@ -16,13 +16,36 @@ module top (
 	output	logic						rmii_rst
 );
 
-	// L144 板没有外部复位引脚，利用 FPGA 上电低电平产生复位。
-	logic rstn;
+	pll	pll_inst (
+		.inclk0 ( clk ),
+		.c0 ( mdc )
+	);
+
+
+
+	// L144 板没有外部复位引脚。50 MHz 下保持约 10.5 ms 的上电复位。
+	logic [18:0] power_on_reset_count = '0;
+	wire rstn = &power_on_reset_count;
+
 	always_ff @(posedge clk) begin
-		if (!rstn) begin
-			rstn <= 1'b1;
-		end
+		if (!rstn)
+			power_on_reset_count <= power_on_reset_count + 1'b1;
 	end
+
+	logic phy_ready;
+	logic rmii_rst_unused;
+
+	phy_smi_helper u_phy_smi_helper (
+		.clk     ( clk      ),
+		.rst     ( rstn     ),
+		.mdclk   ( mdc      ),
+		.phyrst  ( rmii_rst ),
+		.phy_rdy ( phy_ready),
+		.mdio    ( mdio     )
+	);
+
+	// 板载 LED 低电平点亮：PHY 就绪后点亮。
+	assign led = ~phy_ready;
 
 	wire								udp_rxstart;
 	wire								udp_rxend;
@@ -49,7 +72,7 @@ module top (
 		.rmii_rxdata						( rmii_rxdata		),
 		.rmii_txen							( rmii_txen			),
 		.rmii_txdata						( rmii_txdata		),
-		.rmii_rst							( rmii_rst			),
+		.rmii_rst							( rmii_rst_unused	),
 		.m_rmii_rx_axis_net					( m_phy_rx			),
 		.s_rmii_tx_axis_net					( s_phy_tx     		)
 	);
@@ -96,14 +119,5 @@ module top (
 		.udp_txbusy							( udp_txbusy		),
 		.udp_tx_head						( udp_tx_head		)
 	);
-
-	// user test
-	always @(posedge clk or negedge rstn) begin
-		if (!rstn) begin
-			led <= 1'b0;
-		end else if (udp_rxdv && (udp_rxdata == 8'hA1)) begin
-			led <= ~led;
-		end
-	end
 
 endmodule
