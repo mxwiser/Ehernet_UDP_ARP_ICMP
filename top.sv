@@ -1,8 +1,9 @@
 `include "axis.svh"
+`include "pc_head.svh"
 
-// udp_loop: EP4CE10 + LAN8720A UDP 回环 (AXIS 版本)
+// EP4CE10 + LAN8720A UDP 回环（RMII 版本）
 // PC 发来的 UDP 数据经 eth_axis 解析后存入 FIFO, 回环发回 PC
-module udp_loop (
+module top (
 	output  logic                       uart_txd,
 	input   logic                       uart_rxd,
 	input	logic						rstn,
@@ -31,6 +32,8 @@ module udp_loop (
 
     axis								m_phy_rx();
     axis								s_phy_tx();
+	pc_head							udp_rx_head();
+	pc_head							udp_tx_head();
 
 phy_rmii_axis							u_phy_rmii_axis (
 	.rstn								( rstn		),
@@ -44,7 +47,7 @@ phy_rmii_axis							u_phy_rmii_axis (
 	.s_rmii_tx_axis_net					( s_phy_tx     		)
 );
 
-udp	 u1_udp (
+udp	u1_udp (
 	.sys_rst_n							( rstn		    ),
 	.sys_clk							( clk			),
 	.m_phy_rx							( m_phy_rx      ),
@@ -57,44 +60,41 @@ udp	 u1_udp (
 	.udp_rxframe_done					( udp_rxframe_done),
 	.udp_rxdv							( udp_rxdv		),
 	.udp_rxdata							( udp_rxdata	),
-	.udp_rxamount						( udp_rxamount	),
-	.udp_rxnum							( udp_rxnum		),
-	.udp_rx_head						(),
+	.udp_rxamount						( udp_rxamount	),//total
+	.udp_rxnum							( udp_rxnum		),//count
+	.udp_rx_head						( udp_rx_head	),
 
 	.udp_txstart						( udp_txstart	),
 	.udp_txamount						( udp_txamount	),
 	.udp_txdata							( udp_txdata	),
 	.udp_txreq							( udp_txreq		),
 	.udp_txbusy							( udp_txbusy	),
-	.udp_tx_head						(),
+	.udp_tx_head						( udp_tx_head	)
 );
 
-	pc_head                             udp_rx_head();
-	pc_head								udp_tx_head();
 
 
-
-//user test
-// always @ ( posedge clk or negedge rstn ) begin
-// 	if ( !rstn ) begin
-// 		led <= 2'b0;
-// 	end else if ( udp_rxdv && ( udp_rxdata == 'hA1 ) ) begin
-// 		led <= ~led;
-// 	end
-// end
-
-logic [7:0] uart_data;
-logic uart_rxdv;
-uart_rx u_uart_rx(
-	.rstn   	  (rstn),
-	.clk		  (clk),
-	.o_tvalid     (uart_rxdv),
-	.o_tdata	  (uart_data),
-	.i_uart_rx    (uart_rxd)
+udp_ring u_udp_ring (
+	.clk								( clk				),
+	.rstn								( rstn				),
+	.udp_rxframe_done					( udp_rxframe_done	),
+	.udp_rxdv							( udp_rxdv			),
+	.udp_rxdata							( udp_rxdata			),
+	.udp_rxamount						( udp_rxamount		),
+	.udp_rx_head						( udp_rx_head		),
+	.udp_txstart							( udp_txstart		),
+	.udp_txamount						( udp_txamount		),
+	.udp_txdata							( udp_txdata			),
+	.udp_txreq							( udp_txreq			),
+	.udp_txbusy							( udp_txbusy			),
+	.udp_tx_head						( udp_tx_head		)
 );
 
-always_ff@(posedge clk)begin
-	if(uart_rxdv&&(uart_data=='hA1))begin
+// user test
+always @(posedge clk or negedge rstn) begin
+	if (!rstn) begin
+		led <= 2'b0;
+	end else if (udp_rxdv && (udp_rxdata == 8'hA1)) begin
 		led <= ~led;
 	end
 end
