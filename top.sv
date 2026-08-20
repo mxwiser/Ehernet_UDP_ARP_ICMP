@@ -6,6 +6,8 @@
 module top (
 	output  logic                       led,
 	input	logic                       clk,
+	output  logic                       mdc,
+	inout   logic                       mdio,
 	input	logic						rmii_clk,
 	input	logic					   	rmii_rxdv,
 	input	logic	[1:0]				rmii_rxdata,
