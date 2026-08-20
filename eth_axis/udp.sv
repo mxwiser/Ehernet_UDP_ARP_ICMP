@@ -1,14 +1,6 @@
 `include "axis.svh"
 `include "pc_head.svh"
-// author:		Benjamin SMith
-// create time:	2023/03/20 11:16
-// edit time:	2026/08/05
-// platform:	Cyclone ep4ce10f17i7, 野火 board
-// module:		eth_axis
-// function:	Ethernet communication, including ARP and UDP, IPv4 only
-//				renamed from eth_rmii.sv: gmii bus replaced by AXIS (axis.svh),
-//				external ports and function unchanged, udp_loop.sv can use it directly
-// version:		0.1, test ARP function
+
 
 module udp(
 	input	wire						sys_rst_n,
@@ -84,10 +76,7 @@ udp_axis_rx#(
 	.udp_rxdata							( udp_rxdata		),
 	.udp_rxamount						( udp_rxamount		),
 	.udp_rxnum							( udp_rxnum			),
-	.pc_mac_addr						( udp_rx_pc_mac_addr		),
-	.pc_ip_addr							( udp_rx_pc_ip_addr			),
-	.pc_port							( udp_rx_pc_port			),
-	.board_port							( udp_rx_board_port			)
+	.rx_head							(rx_head)
 );
 
 
@@ -104,10 +93,7 @@ udp_axis_tx#(
 	.udp_txdata							( udp_txdata		),
 	.udp_txreq							( udp_txreq			),
 	.udp_txbusy							( udp_txbusy		),
-	.pc_mac_addr						( udp_tx_pc_mac_addr		),
-	.pc_ip_addr							( udp_tx_pc_ip_addr			),
-	.pc_port							( udp_tx_pc_port			),
-	.board_port							( udp_tx_board_port			)
+	.tx_head							( tx_head			)
 );
 
 
