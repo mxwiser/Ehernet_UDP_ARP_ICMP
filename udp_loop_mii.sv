@@ -77,8 +77,8 @@ udp		u1_udp (
 );
 
 
-pc_head                             udp_rx_head();
-pc_head								udp_tx_head();
+pc_head                             	udp_rx_head();
+pc_head									udp_tx_head();
 
 
 fifo#(

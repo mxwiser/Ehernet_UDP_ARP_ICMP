@@ -1,6 +1,7 @@
 `ifndef PC_HEAD_INTERFACE
 `define PC_HEAD_INTERFACE
 interface pc_head;
+
 logic	[47:0]				pc_mac_addr;
 logic	[31:0]				pc_ip_addr;
 logic	[15:0]				pc_port;
