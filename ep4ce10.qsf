@@ -111,7 +111,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/CRC32_D8.sv
 set_global_assignment -name SDC_FILE ep4ce10.out.sdc
 
 set_location_assignment PIN_31 -to mdc
-set_location_assignment PIN_32 -to mdio
+set_location_assignment PIN_30 -to mdio
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to mdio
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to mdc
 set_global_assignment -name QIP_FILE mpll/pll.qip
