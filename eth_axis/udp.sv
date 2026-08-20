@@ -1,5 +1,5 @@
 `include "axis.svh"
-
+`include "pc_head.svh"
 // author:		Benjamin SMith
 // create time:	2023/03/20 11:16
 // edit time:	2026/08/05
@@ -24,26 +24,28 @@ module udp(
 	output	wire						udp_rxstart,
 	output	wire						udp_rxend,       // not include paddding
 	output	wire						udp_rxframe_done,// when padding fifo out.  
-	
 	output	wire						udp_rxdv,
 	output	wire	[7:0]				udp_rxdata,
 	output	wire	[15:0]				udp_rxamount,				// total amount of data, including all pieces
 	output	wire	[15:0]				udp_rxnum,					// the order of the received data in this package
+	pc_head.master						rx_head,
 
-
-
+	//txstart开始前需要确保pc_mac_addr，pc_ip_addr，pc_port，board_port稳定.
 	input	wire						udp_txstart,
 	input	wire	[15:0]				udp_txamount,
 	input	wire	[7:0]				udp_txdata,
 	output	wire						udp_txreq,					// acknowledge that udp_txdata has been transfered
-	output	wire						udp_txbusy
+	output	wire						udp_txbusy,
+	pc_head.slave						tx_head
 );
 
 
-	wire	[47:0]						pc_mac_addr;
-	wire	[31:0]						pc_ip_addr;
-	wire	[15:0]						pc_port;
-	wire	[15:0]						board_port;
+
+
+
+
+
+
 
 	axis								rx_net_cdc();	
 	axis								tx_sys();					// udp_axis_rx ARP reply
@@ -82,10 +84,10 @@ udp_axis_rx#(
 	.udp_rxdata							( udp_rxdata		),
 	.udp_rxamount						( udp_rxamount		),
 	.udp_rxnum							( udp_rxnum			),
-	.pc_mac_addr						( pc_mac_addr		),
-	.pc_ip_addr							( pc_ip_addr		),
-	.pc_port							( pc_port			),
-	.board_port							( board_port		)
+	.pc_mac_addr						( udp_rx_pc_mac_addr		),
+	.pc_ip_addr							( udp_rx_pc_ip_addr			),
+	.pc_port							( udp_rx_pc_port			),
+	.board_port							( udp_rx_board_port			)
 );
 
 
@@ -102,10 +104,10 @@ udp_axis_tx#(
 	.udp_txdata							( udp_txdata		),
 	.udp_txreq							( udp_txreq			),
 	.udp_txbusy							( udp_txbusy		),
-	.pc_mac_addr						( pc_mac_addr		),
-	.pc_ip_addr							( pc_ip_addr		),
-	.pc_port							( pc_port			),
-	.board_port							( board_port		)
+	.pc_mac_addr						( udp_tx_pc_mac_addr		),
+	.pc_ip_addr							( udp_tx_pc_ip_addr			),
+	.pc_port							( udp_tx_pc_port			),
+	.board_port							( udp_tx_board_port			)
 );
 
 

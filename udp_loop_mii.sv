@@ -58,6 +58,7 @@ udp		u1_udp (
 	.s_phy_tx                           ( s_phy_tx      ),
 	.tx_clk								( mii_txc		),
 	.rx_clk								( mii_rxc		),	
+
 	.udp_rxstart						( udp_rxstart	),
 	.udp_rxend							( udp_rxend		),
 	.udp_rxframe_done					( udp_rxframe_done),
@@ -65,29 +66,18 @@ udp		u1_udp (
 	.udp_rxdata							( udp_rxdata	),
 	.udp_rxamount						( udp_rxamount	),
 	.udp_rxnum							( udp_rxnum		),
+
+
 	.udp_txstart						( udp_txstart	),
 	.udp_txamount						( udp_txamount	),
 	.udp_txdata							( udp_txdata	),
 	.udp_txreq							( udp_txreq		),
 	.udp_txbusy							( udp_txbusy	)
 );
-// txstart必须在udp_rxframe_done后开始，不然会导致重叠，mac地址交错，
-// 因为测试程序目前没有把MAC和IP信息储存进fifo，而是根据实时接收的刷新的地址。
 
 
-// 帧数据 FIFO: 载荷字节按到达顺序排队 (wrreq=udp_rxdv, rdreq=udp_txreq)
-// 帧元数据 FIFO: 完整 Ethernet 帧（含 padding/FCS）接收完毕后才入队。
-// udp_rxend 仅表示真实 UDP payload 结束，不能用它提前启动回复。
-// 溢出自愈: 数据/元数据 FIFO 满时清空两者并丢弃当前帧剩余数据, 避免永久错位
-	wire								rx_fifo_full;
-	wire								amt_fifo_empty;
-	wire								amt_fifo_full;
-	reg									rx_drop;						// 溢出后丢弃本帧剩余数据, 帧结束恢复
-	wire								rx_fifo_clear		= ( udp_rxdv && rx_fifo_full ) || ( udp_rxframe_done && amt_fifo_full );
-	wire								amt_rdreq			= udp_txstart && !udp_txbusy;			// TX 启动时出队一个帧长度
-	wire								amt_wrreq			= udp_rxframe_done && !rx_drop;
 
-	assign		udp_txstart		= !amt_fifo_empty;
+
 
 fifo#(
 	.DATA_WIDTH('d8),
@@ -98,35 +88,14 @@ fifo#(
 	.clear								( rx_fifo_clear	),
 	.data								( udp_rxdata	),
 	.rdreq								( udp_txreq		),
-	.wrreq								( udp_rxdv && !rx_drop ),
+	.wrreq								( udp_rxdv ),
 	.full								( rx_fifo_full	),
 	.q									( udp_txdata	)
 );
 
-fifo#(
-	.DATA_WIDTH('d16),
-	.DEPTH('d64)
-)							u3_fifo_amt (
-	.rstn								( rstn		),
-	.clock								( clk			),
-	.clear								( rx_fifo_clear	),
-	.data								( udp_rxamount	),
-	.rdreq								( amt_rdreq		),
-	.wrreq								( amt_wrreq		),
-	.empty								( amt_fifo_empty),
-	.full								( amt_fifo_full	),
-	.q									( udp_txamount	)
-);
 
-always @ ( posedge clk or negedge rstn ) begin
-	if ( !rstn ) begin
-		rx_drop <= 1'b0;
-	end else if ( rx_fifo_clear ) begin
-		rx_drop <= 1'b1;					// 溢出: 丢弃本帧剩余数据
-	end else if ( udp_rxframe_done ) begin
-		rx_drop <= 1'b0;					// 帧结束, 恢复
-	end
-end
+
+
 
 
 //user test
