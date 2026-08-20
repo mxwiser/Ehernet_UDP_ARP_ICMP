@@ -66,17 +66,19 @@ udp		u1_udp (
 	.udp_rxdata							( udp_rxdata	),
 	.udp_rxamount						( udp_rxamount	),
 	.udp_rxnum							( udp_rxnum		),
-
+	.udp_rx_head						( udp_rx_head),
 
 	.udp_txstart						( udp_txstart	),
 	.udp_txamount						( udp_txamount	),
 	.udp_txdata							( udp_txdata	),
 	.udp_txreq							( udp_txreq		),
-	.udp_txbusy							( udp_txbusy	)
+	.udp_txbusy							( udp_txbusy	),
+	.udp_tx_head						( udp_tx_head   )
 );
 
 
-
+pc_head                             udp_rx_head();
+pc_head								udp_tx_head();
 
 
 fifo#(

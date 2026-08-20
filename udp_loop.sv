@@ -44,13 +44,14 @@ phy_rmii_axis							u_phy_rmii_axis (
 	.s_rmii_tx_axis_net					( s_phy_tx     		)
 );
 
-udp		u1_udp (
+udp	 u1_udp (
 	.sys_rst_n							( rstn		    ),
 	.sys_clk							( clk			),
 	.m_phy_rx							( m_phy_rx      ),
 	.s_phy_tx                           ( s_phy_tx      ),
 	.tx_clk								( rmii_clk		),
 	.rx_clk								( rmii_clk      ),	
+
 	.udp_rxstart						( udp_rxstart	),
 	.udp_rxend							( udp_rxend		),
 	.udp_rxframe_done					( udp_rxframe_done),
@@ -58,17 +59,19 @@ udp		u1_udp (
 	.udp_rxdata							( udp_rxdata	),
 	.udp_rxamount						( udp_rxamount	),
 	.udp_rxnum							( udp_rxnum		),
+	.udp_rx_head						(),
+
 	.udp_txstart						( udp_txstart	),
 	.udp_txamount						( udp_txamount	),
 	.udp_txdata							( udp_txdata	),
 	.udp_txreq							( udp_txreq		),
-	.udp_txbusy							( udp_txbusy	)
+	.udp_txbusy							( udp_txbusy	),
+	.udp_tx_head						(),
 );
 
-// 帧数据 FIFO: 载荷字节按到达顺序排队 (wrreq=udp_rxdv, rdreq=udp_txreq)
-// 帧元数据 FIFO: 完整 Ethernet 帧（含 padding/FCS）接收完毕后才入队。
-// udp_rxend 仅表示真实 UDP payload 结束，不能用它提前启动回复。
-// 溢出自愈: 数据/元数据 FIFO 满时清空两者并丢弃当前帧剩余数据, 避免永久错位
+	pc_head                             udp_rx_head();
+	pc_head								udp_tx_head();
+
 	wire								rx_fifo_full;
 	wire								amt_fifo_empty;
 	wire								amt_fifo_full;

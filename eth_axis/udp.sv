@@ -20,7 +20,7 @@ module udp(
 	output	wire	[7:0]				udp_rxdata,
 	output	wire	[15:0]				udp_rxamount,				// total amount of data, including all pieces
 	output	wire	[15:0]				udp_rxnum,					// the order of the received data in this package
-	pc_head.master						rx_head,
+	pc_head.master						udp_rx_head,
 
 	//txstart开始前需要确保pc_mac_addr，pc_ip_addr，pc_port，board_port稳定.
 	input	wire						udp_txstart,
@@ -28,7 +28,7 @@ module udp(
 	input	wire	[7:0]				udp_txdata,
 	output	wire						udp_txreq,					// acknowledge that udp_txdata has been transfered
 	output	wire						udp_txbusy,
-	pc_head.slave						tx_head
+	pc_head.slave						udp_tx_head
 );
 
 
@@ -76,7 +76,7 @@ udp_axis_rx#(
 	.udp_rxdata							( udp_rxdata		),
 	.udp_rxamount						( udp_rxamount		),
 	.udp_rxnum							( udp_rxnum			),
-	.rx_head							(rx_head)
+	.rx_head							( udp_rx_head)
 );
 
 
@@ -93,7 +93,7 @@ udp_axis_tx#(
 	.udp_txdata							( udp_txdata		),
 	.udp_txreq							( udp_txreq			),
 	.udp_txbusy							( udp_txbusy		),
-	.tx_head							( tx_head			)
+	.tx_head							( udp_tx_head			)
 );
 
 
