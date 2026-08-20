@@ -1,5 +1,5 @@
 `include "axis.svh"
-
+`include "pc_head.svh"
 
 module udp_axis_rx #(
 	parameter		BOARD_MAC_ADDR			= 48'h00_10_22_33_44_55,
@@ -22,11 +22,7 @@ module udp_axis_rx #(
 	output	reg		[7:0]					udp_rxdata,
 	output	reg		[15:0]					udp_rxamount,			// total amount of data, including all pieces
 	output	reg		[15:0]					udp_rxnum,				// the order of the received data in this package
-	
-	output	reg		[47:0]					pc_mac_addr,
-	output	reg		[31:0]					pc_ip_addr,
-	output	reg		[15:0]					pc_port,
-	output	reg		[15:0]					board_port
+	pc_head.master                          rx_head
 );
 
 
@@ -753,20 +749,20 @@ assign		pc_refresh		=	state == UDP_LEN && !cnt_udp_len && s_mac_tvalid;
 
 always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
-		pc_mac_addr <= 48'h0;
-		pc_ip_addr <= 32'h0;
-		pc_port <= 16'h0;
-		board_port <= 16'h0;
+		rx_head.pc_mac_addr <= 48'h0;
+		rx_head.pc_ip_addr <= 32'h0;
+		rx_head.pc_port <= 16'h0;
+		rx_head.board_port <= 16'h0;
 	end else if ( pc_refresh ) begin
-		pc_mac_addr <= src_mac;
-		pc_ip_addr <= src_ip;
-		pc_port <= src_port;
-		board_port <= des_port;
+		rx_head.pc_mac_addr <= src_mac;
+		rx_head.pc_ip_addr <= src_ip;
+		rx_head.pc_port <= src_port;
+		rx_head.board_port <= des_port;
 	end else begin
-		pc_mac_addr <= pc_mac_addr;
-		pc_ip_addr <= pc_ip_addr;
-		pc_port <= pc_port;
-		board_port <= board_port;
+		rx_head.pc_mac_addr <= rx_head.pc_mac_addr;
+		rx_head.pc_ip_addr <= rx_head.pc_ip_addr;
+		rx_head.pc_port <= rx_head.pc_port;
+		rx_head.board_port <= rx_head.board_port;
 	end
 end
 

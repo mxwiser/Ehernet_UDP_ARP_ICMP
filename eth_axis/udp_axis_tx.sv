@@ -1,13 +1,6 @@
 `include "axis.svh"
+`include "pc_head.svh"
 
-// author:		Benjamin SMith
-// create time:	2023/03/21 15:04
-// edit time:	2026/08/05
-// platform:	Cyclone ep4ce10f17i7, 野火 board
-// module:		udp_axis_tx
-// function:	UDP transform data, only IPv4 supported. fragment is supported
-//				renamed from udp_gmii_tx.v, AXIS version
-// version:		2.0
 
 module udp_axis_tx #(
 	parameter		BOARD_MAC_ADDR			= 48'h00_11_22_33_44_55,     
@@ -23,11 +16,7 @@ module udp_axis_tx #(
 	input	wire	[7:0]					udp_txdata,
 	output	wire							udp_txreq,
 	output	reg								udp_txbusy,
-	
-	input	wire	[47:0]					pc_mac_addr,
-	input	wire	[31:0]					pc_ip_addr,
-	input	wire	[15:0]					pc_port,
-	input	wire	[15:0]					board_port
+	pc_head.slave							tx_head
 );
 
 
@@ -103,10 +92,10 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		pc_port_latched     <= 16'd0;
 		board_port_latched  <= 16'd0;
 	end else if ( udp_txstart && !udp_txbusy ) begin
-		pc_mac_addr_latched <= pc_mac_addr;
-		pc_ip_addr_latched  <= pc_ip_addr;
-		pc_port_latched     <= pc_port;
-		board_port_latched  <= board_port;
+		pc_mac_addr_latched <= tx_head.pc_mac_addr;
+		pc_ip_addr_latched  <= tx_head.pc_ip_addr;
+		pc_port_latched     <= tx_head.pc_port;
+		board_port_latched  <= tx_head.board_port;
 	end
 end
 

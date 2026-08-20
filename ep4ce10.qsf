@@ -38,7 +38,7 @@
 
 set_global_assignment -name FAMILY "Cyclone IV E"
 set_global_assignment -name DEVICE EP4CE10E22C8
-set_global_assignment -name TOP_LEVEL_ENTITY udp_loop
+set_global_assignment -name TOP_LEVEL_ENTITY top
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 18.1.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "11:33:31  JULY 06, 2026"
 set_global_assignment -name LAST_QUARTUS_VERSION "25.1std.0 Lite Edition"
@@ -91,8 +91,9 @@ set_location_assignment PIN_38 -to rmii_rxdata[1]
 set_location_assignment PIN_25 -to rmii_clk
 set_location_assignment PIN_28 -to led
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to led
+set_global_assignment -name SYSTEMVERILOG_FILE top.sv
+set_global_assignment -name SYSTEMVERILOG_FILE udp_ring.sv
 set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/user_dc_fifo.sv
-set_global_assignment -name SYSTEMVERILOG_FILE udp_loop.sv
 set_global_assignment -name SYSTEMVERILOG_FILE uart_axis/uart_tx.sv
 set_global_assignment -name SYSTEMVERILOG_FILE uart_axis/uart_rx.sv
 set_global_assignment -name SYSTEMVERILOG_FILE eth_axis/SMI_ct.sv
