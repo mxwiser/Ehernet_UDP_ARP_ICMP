@@ -51,7 +51,7 @@ phy_mii_axis							u_phy_mii_axis (
 	.s_phy_tx							( s_phy_tx	)
 );
 
-udp		u1_udp (
+udp	u1_udp (
 	.sys_rst_n							( rstn		    ),
 	.sys_clk							( clk			),
 	.m_phy_rx							( m_phy_rx      ),
@@ -64,9 +64,9 @@ udp		u1_udp (
 	.udp_rxframe_done					( udp_rxframe_done),
 	.udp_rxdv							( udp_rxdv		),
 	.udp_rxdata							( udp_rxdata	),
-	.udp_rxamount						( udp_rxamount	),
-	.udp_rxnum							( udp_rxnum		),
-	.udp_rx_head						( udp_rx_head),
+	.udp_rxamount						( udp_rxamount	),//total
+	.udp_rxnum							( udp_rxnum		),//count
+	.udp_rx_head						( udp_rx_head   ),
 
 	.udp_txstart						( udp_txstart	),
 	.udp_txamount						( udp_txamount	),
