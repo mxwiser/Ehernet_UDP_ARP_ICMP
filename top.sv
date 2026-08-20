@@ -84,14 +84,14 @@ udp_ring u_udp_ring (
 	.rstn								( rstn				),
 	.udp_rxframe_done					( udp_rxframe_done	),
 	.udp_rxdv							( udp_rxdv			),
-	.udp_rxdata							( udp_rxdata			),
+	.udp_rxdata							( udp_rxdata		),
 	.udp_rxamount						( udp_rxamount		),
 	.udp_rx_head						( udp_rx_head		),
-	.udp_txstart							( udp_txstart		),
+	.udp_txstart						( udp_txstart		),
 	.udp_txamount						( udp_txamount		),
-	.udp_txdata							( udp_txdata			),
+	.udp_txdata							( udp_txdata		),
 	.udp_txreq							( udp_txreq			),
-	.udp_txbusy							( udp_txbusy			),
+	.udp_txbusy							( udp_txbusy		),
 	.udp_tx_head						( udp_tx_head		)
 );
 
