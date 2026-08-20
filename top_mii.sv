@@ -3,7 +3,7 @@
 
 
 // PC 发来的 UDP 数据经 eth_axis 解析后存入 FIFO, 回环发回 PC
-module udp_loop_mii (
+module top_mii (
 	output  logic                       uart_txd,
 	input   logic                       uart_rxd,
 	input	logic						rstn,
