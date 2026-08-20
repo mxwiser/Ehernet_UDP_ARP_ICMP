@@ -40,68 +40,68 @@ module top (
 	pc_head							udp_rx_head();
 	pc_head							udp_tx_head();
 
-phy_rmii_axis							u_phy_rmii_axis (
-	.rstn								( rstn		),
-	.rmii_clk							( rmii_clk			),
-	.rmii_crs_dv						( rmii_rxdv			),
-	.rmii_rxdata						( rmii_rxdata		),
-	.rmii_txen							( rmii_txen			),
-	.rmii_txdata						( rmii_txdata		),
-	.rmii_rst							( rmii_rst			),
-	.m_rmii_rx_axis_net					( m_phy_rx			),
-	.s_rmii_tx_axis_net					( s_phy_tx     		)
-);
+	phy_rmii_axis							u_phy_rmii_axis (
+		.rstn								( rstn		),
+		.rmii_clk							( rmii_clk			),
+		.rmii_crs_dv						( rmii_rxdv			),
+		.rmii_rxdata						( rmii_rxdata		),
+		.rmii_txen							( rmii_txen			),
+		.rmii_txdata						( rmii_txdata		),
+		.rmii_rst							( rmii_rst			),
+		.m_rmii_rx_axis_net					( m_phy_rx			),
+		.s_rmii_tx_axis_net					( s_phy_tx     		)
+	);
 
-udp	u1_udp (
-	.sys_rst_n							( rstn		    ),
-	.sys_clk							( clk			),
-	.m_phy_rx							( m_phy_rx      ),
-	.s_phy_tx                           ( s_phy_tx      ),
-	.tx_clk								( rmii_clk		),
-	.rx_clk								( rmii_clk      ),
+	udp	u1_udp (
+		.sys_rst_n							( rstn		    ),
+		.sys_clk							( clk			),
+		.m_phy_rx							( m_phy_rx      ),
+		.s_phy_tx                           ( s_phy_tx      ),
+		.tx_clk								( rmii_clk		),
+		.rx_clk								( rmii_clk      ),
 
-	.udp_rxstart						( udp_rxstart	),
-	.udp_rxend							( udp_rxend		),
-	.udp_rxframe_done					( udp_rxframe_done),
-	.udp_rxdv							( udp_rxdv		),
-	.udp_rxdata							( udp_rxdata	),
-	.udp_rxamount						( udp_rxamount	),//total
-	.udp_rxnum							( udp_rxnum		),//count
-	.udp_rx_head						( udp_rx_head	),
+		.udp_rxstart						( udp_rxstart	),
+		.udp_rxend							( udp_rxend		),
+		.udp_rxframe_done					( udp_rxframe_done),
+		.udp_rxdv							( udp_rxdv		),
+		.udp_rxdata							( udp_rxdata	),
+		.udp_rxamount						( udp_rxamount	),//total
+		.udp_rxnum							( udp_rxnum		),//count
+		.udp_rx_head						( udp_rx_head	),
 
-	.udp_txstart						( udp_txstart	),
-	.udp_txamount						( udp_txamount	),
-	.udp_txdata							( udp_txdata	),
-	.udp_txreq							( udp_txreq		),
-	.udp_txbusy							( udp_txbusy	),
-	.udp_tx_head						( udp_tx_head	)
-);
+		.udp_txstart						( udp_txstart	),
+		.udp_txamount						( udp_txamount	),
+		.udp_txdata							( udp_txdata	),
+		.udp_txreq							( udp_txreq		),
+		.udp_txbusy							( udp_txbusy	),
+		.udp_tx_head						( udp_tx_head	)
+	);
 
 
 
-udp_ring u_udp_ring (
-	.clk								( clk				),
-	.rstn								( rstn				),
-	.udp_rxframe_done					( udp_rxframe_done	),
-	.udp_rxdv							( udp_rxdv			),
-	.udp_rxdata							( udp_rxdata		),
-	.udp_rxamount						( udp_rxamount		),
-	.udp_rx_head						( udp_rx_head		),
-	.udp_txstart						( udp_txstart		),
-	.udp_txamount						( udp_txamount		),
-	.udp_txdata							( udp_txdata		),
-	.udp_txreq							( udp_txreq			),
-	.udp_txbusy							( udp_txbusy		),
-	.udp_tx_head						( udp_tx_head		)
-);
+	udp_ring u_udp_ring (
+		.clk								( clk				),
+		.rstn								( rstn				),
+		.udp_rxframe_done					( udp_rxframe_done	),
+		.udp_rxdv							( udp_rxdv			),
+		.udp_rxdata							( udp_rxdata		),
+		.udp_rxamount						( udp_rxamount		),
+		.udp_rx_head						( udp_rx_head		),
+		.udp_txstart						( udp_txstart		),
+		.udp_txamount						( udp_txamount		),
+		.udp_txdata							( udp_txdata		),
+		.udp_txreq							( udp_txreq			),
+		.udp_txbusy							( udp_txbusy		),
+		.udp_tx_head						( udp_tx_head		)
+	);
 
-// user test
-always @(posedge clk or negedge rstn) begin
-	if (!rstn) begin
-		led <= 1'b0;
-	end else if (udp_rxdv && (udp_rxdata == 8'hA1)) begin
-		led <= ~led;
+	// user test
+	always @(posedge clk or negedge rstn) begin
+		if (!rstn) begin
+			led <= 1'b0;
+		end else if (udp_rxdv && (udp_rxdata == 8'hA1)) begin
+			led <= ~led;
+		end
 	end
-end
 
 endmodule
