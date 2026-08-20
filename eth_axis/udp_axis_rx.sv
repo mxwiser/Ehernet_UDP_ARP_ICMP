@@ -1,13 +1,11 @@
 `include "axis.svh"
 `include "pc_head.svh"
 
-module udp_axis_rx #(
-	parameter		BOARD_MAC_ADDR			= 48'h00_10_22_33_44_55,
-	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17			// 169.254.1.23
-)
-(
+module udp_axis_rx (
 	input	wire							sys_clk,
 	input	wire							sys_rst_n,
+	input	wire	[47:0]					board_mac_addr,
+	input	wire	[31:0]					board_ip_addr,
 	
 	axis.slave								s_axis_rx,				// PHY RX stream from rmii_axis, tlast is frame-level
 	axis.master								m_axis_tx,				// ARP reply TX stream to rmii_axis
@@ -44,12 +42,11 @@ assign s_eth_axis.tdata  =   s_mac_tdata;
 assign s_eth_axis.tvalid =   s_mac_tvalid;
 assign s_eth_axis.tlast  =   s_mac_tlast;
 
-eth_axis #(
-	.BOARD_MAC_ADDR							( BOARD_MAC_ADDR	),
-	.BOARD_IP_ADDR							( BOARD_IP_ADDR		)
-) u_eth_axis (
+eth_axis u_eth_axis (
 	.sys_clk								( sys_clk			),
 	.sys_rst_n								( sys_rst_n			),
+	.board_mac_addr							( board_mac_addr	),
+	.board_ip_addr							( board_ip_addr		),
 	.s_axis_rx								( s_eth_axis		),
 	.m_axis_tx								( m_axis_tx		),
 	.arp_working							( arp_working		),
@@ -147,7 +144,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end
 			MAC_ADDR: begin
 				if ( cnt_mac_addr >= 4'd11 && s_mac_tvalid ) begin
-					if ( des_mac == BOARD_MAC_ADDR ) begin
+					if ( des_mac == board_mac_addr ) begin
 						state <= UDP_TYPE;
 					end else begin
 						state <= UDP_IDLE;
@@ -269,7 +266,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 				end
 			end
 			UDP_PORT: begin
-				if ( des_ip != BOARD_IP_ADDR ) begin
+				if ( des_ip != board_ip_addr ) begin
 					state <= UDP_IDLE;
 					frame_rejected <= 1'b1;
 				end else if ( cnt_udp_port >= 2'd3 && s_mac_tvalid ) begin

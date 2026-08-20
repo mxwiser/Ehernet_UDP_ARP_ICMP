@@ -13,6 +13,8 @@
 module eth_axis (
 	input	wire							sys_clk,
 	input	wire							sys_rst_n,
+	input	wire	[47:0]					board_mac_addr,
+	input	wire	[31:0]					board_ip_addr,
 	axis.slave								s_axis_rx,				// PHY RX stream from rmii_axis, tlast is frame-level
 	axis.master								m_axis_tx,				// ARP / ICMP echo reply TX stream to rmii_axis
 	output	reg								arp_working,			// ARP / ICMP reply is being sent, for TX arbitration
@@ -21,9 +23,6 @@ module eth_axis (
 	output	reg		[31:0]					arp_pc_ip,				// PC IP learned by ARP
 	output	wire							arp_pc_refresh			// learned pulse
 );
-
-	parameter		BOARD_MAC_ADDR			= 48'h00_10_22_33_44_55;
-	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17;				// 169.254.1.23
 
 // -------------------------------- axis <-> gmii bridge ------------------------------------------
 // RX: s_mac_tvalid / s_mac_tlast / s_mac_tdata come from s_axis_rx, tready is ignored (rmii_axis never backpressures RX)
@@ -38,10 +37,17 @@ module eth_axis (
 // TX (ARP / ICMP reply only): txen / txbusy mapped to AXIS handshake.
 // txen && !txbusy  ==  tvalid && tready
     logic [7:0] arp_head [0:8] = '{8'h08,8'h06,8'h00,8'h01,8'h08,8'h00,8'h06,8'h04,8'h00};
-    logic [7:0] eth_head [0:7] = '{ BOARD_MAC_ADDR[47:40], BOARD_MAC_ADDR[39:32],
-                                    BOARD_MAC_ADDR[31:24], BOARD_MAC_ADDR[23:16],
-                                    BOARD_MAC_ADDR[15:8],  BOARD_MAC_ADDR[7:0],
-                                    8'h08, 8'h06 };                            // src MAC + ethertype 0806
+    logic [7:0] eth_head [0:7];
+	always_comb begin
+		eth_head[0] = board_mac_addr[47:40];
+		eth_head[1] = board_mac_addr[39:32];
+		eth_head[2] = board_mac_addr[31:24];
+		eth_head[3] = board_mac_addr[23:16];
+		eth_head[4] = board_mac_addr[15:8];
+		eth_head[5] = board_mac_addr[7:0];
+		eth_head[6] = 8'h08;
+		eth_head[7] = 8'h06;
+	end
 	wire									txen;
 	wire									txbusy;
 	wire		[7:0]						txdata;
@@ -127,7 +133,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end
 		end
 		MAC_DES: begin
-			if ( rx_cnt_mac_des >= 3'd6 && ( mac_des == 48'hFF_FF_FF_FF_FF_FF || mac_des == BOARD_MAC_ADDR ) ) begin
+			if ( rx_cnt_mac_des >= 3'd6 && ( mac_des == 48'hFF_FF_FF_FF_FF_FF || mac_des == board_mac_addr ) ) begin
 				rx_state <= MAC_SRC;
 			end else if ( rx_cnt_mac_des >= 3'd6 ) begin
 				rx_state <= IDLE;
@@ -324,7 +330,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end
 		end
 		ICMP_TYPE: begin													// only echo request is supported, TYPE = 'h0800
-			if ( rx_cnt_icmp_type == 2'd0 && s_mac_tvalid && ip_des != BOARD_IP_ADDR ) begin	// dst IP is complete now
+			if ( rx_cnt_icmp_type == 2'd0 && s_mac_tvalid && ip_des != board_ip_addr ) begin	// dst IP is complete now
 				rx_state <= IDLE;
 			end else if ( rx_cnt_icmp_type == 2'd1 && s_mac_tvalid && ( { s_mac_tdata_r, s_mac_tdata } == 16'h0800 ) ) begin
 				rx_state <= ICMP_CHECK;
@@ -1083,7 +1089,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 		arp_req <= 1'b0;
 	end else if ( rx_state == IDLE ) begin									// receive corresponding IP address, enable arp_req
 		arp_req <= 1'b0;
-	end else if ( rx_cnt_arp_des_ip == 3'd4 && ip_des == BOARD_IP_ADDR ) begin
+	end else if ( rx_cnt_arp_des_ip == 3'd4 && ip_des == board_ip_addr ) begin
 		arp_req <= 1'b1;
 	end else begin
 		arp_req <= arp_req;
@@ -1246,10 +1252,10 @@ end
 			arp_reply_byte = arp_head[ cnt - 7'd20 ];
 		end else if ( cnt == 7'd29 ) begin									// ARP opcode = 0x0002 (reply)
 			arp_reply_byte = 8'h02;
-		end else if ( cnt <= 7'd35 ) begin									// sender MAC = BOARD_MAC_ADDR
-			arp_reply_byte = BOARD_MAC_ADDR[ (47 - 8*(cnt - 7'd30)) -: 8 ];
-		end else if ( cnt <= 7'd39 ) begin									// sender IP = BOARD_IP_ADDR
-			arp_reply_byte = BOARD_IP_ADDR[ (31 - 8*(cnt - 7'd36)) -: 8 ];
+		end else if ( cnt <= 7'd35 ) begin									// sender MAC = board_mac_addr
+			arp_reply_byte = board_mac_addr[ (47 - 8*(cnt - 7'd30)) -: 8 ];
+		end else if ( cnt <= 7'd39 ) begin									// sender IP = board_ip_addr
+			arp_reply_byte = board_ip_addr[ (31 - 8*(cnt - 7'd36)) -: 8 ];
 		end else if ( cnt <= 7'd45 ) begin									// target MAC = arp_pc_mac
 			arp_reply_byte = tx_des_mac[ (47 - 8*(cnt - 7'd40)) -: 8 ];
 		end else if ( cnt <= 7'd49 ) begin									// target IP = arp_pc_ip
@@ -1268,7 +1274,7 @@ end
 // Sum = 0x4500 + total + id + 0x0000 + 0x8001 + src_hi + src_lo + dst_hi + dst_lo
 // constants folded into icmp_cks_const, computed in a 4-stage pipeline right after the
 // frame CRC check (icmp_req_true), the reply TX starts when it completes
-	wire		[19:0]						icmp_cks_const		= 20'h0_4500 + 20'h0_8001 + { 4'b0, BOARD_IP_ADDR[31:16] } + { 4'b0, BOARD_IP_ADDR[15:0] };	// const, folds to constant while BOARD_IP_ADDR is a parameter
+	wire		[19:0]						icmp_cks_const		= 20'h0_4500 + 20'h0_8001 + { 4'b0, board_ip_addr[31:16] } + { 4'b0, board_ip_addr[15:0] };
 
 	reg		[2:0]							icmp_cks_stage;		// 0 idle, 1~4 pipeline running
 	reg		[19:0]							icmp_sum_p1;		// stage 1: const + total + id
@@ -1333,8 +1339,8 @@ end
 			icmp_reply_byte = 8'h01;
 		end else if ( cnt <= 7'd33 ) begin									// IP header checksum
 			icmp_reply_byte = tx_ip_cksum[ (15 - 8*(cnt - 7'd32)) -: 8 ];
-		end else if ( cnt <= 7'd37 ) begin									// source IP = BOARD_IP_ADDR
-			icmp_reply_byte = BOARD_IP_ADDR[ (31 - 8*(cnt - 7'd34)) -: 8 ];
+		end else if ( cnt <= 7'd37 ) begin									// source IP = board_ip_addr
+			icmp_reply_byte = board_ip_addr[ (31 - 8*(cnt - 7'd34)) -: 8 ];
 		end else if ( cnt <= 7'd41 ) begin									// dest IP = tx_des_ip (PC IP)
 			icmp_reply_byte = tx_des_ip[ (31 - 8*(cnt - 7'd38)) -: 8 ];
 		end else if ( cnt <= 7'd43 ) begin									// ICMP type/code = 0x0000 (echo reply)

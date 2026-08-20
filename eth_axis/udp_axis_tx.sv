@@ -2,12 +2,11 @@
 `include "pc_head.svh"
 
 
-module udp_axis_tx #(
-	parameter		BOARD_MAC_ADDR			= 48'h00_11_22_33_44_55,     
-	parameter		BOARD_IP_ADDR			= 32'hA9_FE_01_17			// 169.254.1.23
-)(
+module udp_axis_tx (
 	input	wire							sys_clk,
 	input	wire							sys_rst_n,
+	input	wire	[47:0]					board_mac_addr,
+	input	wire	[31:0]					board_ip_addr,
 	
 	axis.master								m_axis_tx,				// TX stream to rmii_axis, tlast is frame-level
 	
@@ -431,7 +430,7 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 	if ( !sys_rst_n ) begin
 		ip_checksum <= 32'h0;
 	end else if ( state == IP_SPLIT && cnt_ip_split && gmii_txen && !gmii_txbusy ) begin
-		ip_checksum <= 16'h4500 + ip_data_len + ip_id + 16'h0000 + 16'h4011 + BOARD_IP_ADDR[31:16] + BOARD_IP_ADDR[15:0] + pc_ip_addr_latched[31:16] + pc_ip_addr_latched[15:0];
+		ip_checksum <= 16'h4500 + ip_data_len + ip_id + 16'h0000 + 16'h4011 + board_ip_addr[31:16] + board_ip_addr[15:0] + pc_ip_addr_latched[31:16] + pc_ip_addr_latched[15:0];
 	end else if ( state == IP_TTL ) begin
 		ip_checksum <= ip_checksum[31:16] + ip_checksum[15:0];
 	end else begin
@@ -629,17 +628,17 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			end else if ( cnt_mac_addr == 4'd4 && gmii_txen && !gmii_txbusy ) begin
 				gmii_txdata <= pc_mac_addr_latched[7:0];
 			end else if ( cnt_mac_addr == 4'd5 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[47:40];
+				gmii_txdata <= board_mac_addr[47:40];
 			end else if ( cnt_mac_addr == 4'd6 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[39:32];
+				gmii_txdata <= board_mac_addr[39:32];
 			end else if ( cnt_mac_addr == 4'd7 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[31:24];
+				gmii_txdata <= board_mac_addr[31:24];
 			end else if ( cnt_mac_addr == 4'd8 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[23:16];
+				gmii_txdata <= board_mac_addr[23:16];
 			end else if ( cnt_mac_addr == 4'd9 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[15:8];
+				gmii_txdata <= board_mac_addr[15:8];
 			end else if ( cnt_mac_addr == 4'd10 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_MAC_ADDR[7:0];
+				gmii_txdata <= board_mac_addr[7:0];
 			end else if ( cnt_mac_addr == 4'd11 && gmii_txen && !gmii_txbusy ) begin
 				gmii_txdata <= 8'h08;
 			end else begin
@@ -709,18 +708,18 @@ always @ ( posedge sys_clk or negedge sys_rst_n ) begin
 			if ( !cnt_ip_check && gmii_txen && !gmii_txbusy ) begin
 				gmii_txdata <= ip_checksum[7:0] ^ 8'hff;
 			end else if ( cnt_ip_check && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_IP_ADDR[31:24];
+				gmii_txdata <= board_ip_addr[31:24];
 			end else begin
 				gmii_txdata <= gmii_txdata;
 			end
 		end
 		IP_ADDR: begin
 			if ( cnt_ip_addr == 3'd0 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_IP_ADDR[23:16];
+				gmii_txdata <= board_ip_addr[23:16];
 			end else if ( cnt_ip_addr == 3'd1 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_IP_ADDR[15:8];
+				gmii_txdata <= board_ip_addr[15:8];
 			end else if ( cnt_ip_addr == 3'd2 && gmii_txen && !gmii_txbusy ) begin
-				gmii_txdata <= BOARD_IP_ADDR[7:0];
+				gmii_txdata <= board_ip_addr[7:0];
 			end else if ( cnt_ip_addr == 3'd3 && gmii_txen && !gmii_txbusy ) begin
 				gmii_txdata <= pc_ip_addr_latched[31:24];
 			end else if ( cnt_ip_addr == 3'd4 && gmii_txen && !gmii_txbusy ) begin

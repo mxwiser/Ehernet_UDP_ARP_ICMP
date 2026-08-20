@@ -80,6 +80,11 @@ module top (
 	udp	u1_udp (
 		.sys_rst_n							( rstn		    ),
 		.sys_clk							( clk			),
+		// No runtime configuration source is present in top yet. Replace these
+		// three connections with the future CPU/EEPROM/DHCP configuration logic.
+		.board_addr_cfg_valid				( 1'b0			),
+		.board_mac_addr_cfg					( 48'd0			),
+		.board_ip_addr_cfg					( 32'd0			),
 		.m_phy_rx							( m_phy_rx      ),
 		.s_phy_tx                           ( s_phy_tx      ),
 		.tx_clk								( rmii_clk		),
