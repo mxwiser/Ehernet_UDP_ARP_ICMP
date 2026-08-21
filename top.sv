@@ -127,6 +127,8 @@ module top (
 	);
 
 	udp_cmd_process u1_udp_cmd_process(
+		.clk       (clk),
+		.rstn      (rstn),
 		.hc595_s1 (hc595_s1)
 	);
 

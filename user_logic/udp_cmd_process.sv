@@ -1,5 +1,7 @@
 `include "hc595.svh"
 module udp_cmd_process(
+    input  logic                    clk,
+    input  logic                    rstn,
     input  wire                     udp_rxstart,
     input  wire						udp_rxframe_done,
 	input  wire						udp_rxdv,
@@ -10,6 +12,8 @@ module udp_cmd_process(
 );
 
 HC595PWM u1_hc595(
+    .clk            (clk),
+    .rstn           (rstn),
     .hc595_serial (hc595_s1)
 );
 
