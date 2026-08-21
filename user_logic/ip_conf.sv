@@ -32,9 +32,9 @@ always_ff @(posedge clk or negedge rstn) begin
         if (!config_latched) begin
             if (sync_count == 2) begin
                 board_mac_addr <=
-                    BASE_BOARD_MAC_ADDR + {{44{1'b0}}, addr_sync_2};
+                    BASE_BOARD_MAC_ADDR + addr_sync_2;
                 board_ip_addr <=
-                    BASE_BOARD_IP_ADDR + {{28{1'b0}}, addr_sync_2};
+                    BASE_BOARD_IP_ADDR +  addr_sync_2;
                 config_latched <= 1'b1;
             end else begin
                 sync_count <= sync_count + 1'b1;
