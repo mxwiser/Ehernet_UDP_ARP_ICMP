@@ -4,6 +4,7 @@ module ip_conf #(
 )(
     input  wire         clk,
     input  wire         rstn,
+    input  wire  [3:0]  addr,
     output logic [47:0] board_mac_addr,
     output logic [31:0] board_ip_addr
 );
