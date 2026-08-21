@@ -22,9 +22,8 @@ always_ff @(posedge clk or negedge rstn)begin
         stcp =0;
         shcp =0;
         oen  =1;
-        ds   =0;
+        ser  =0;
     end else begin
-
     end
 end
 
