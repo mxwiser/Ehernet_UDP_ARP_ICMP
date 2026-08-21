@@ -9,5 +9,8 @@ module udp_cmd_process(
     hc595                           hc595_s1
 );
 
+HC595PWM u1_hc595(
+    .hc595_serial (hc595_s1)
+);
 
 endmodule

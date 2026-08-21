@@ -4,7 +4,7 @@ module HC595PWM #(
 )(
     input  logic   rstn,
     input  logic   clk,
-    hc595.master   hc595_s1
+    hc595.master   hc595_serial
 );
 
 
