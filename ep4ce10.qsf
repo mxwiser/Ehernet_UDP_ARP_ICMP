@@ -96,6 +96,7 @@ set_location_assignment PIN_31 -to mdc
 set_location_assignment PIN_30 -to mdio
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to mdio
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to mdc
+set_global_assignment -name SOURCE_FILE user_logic/hc595.svh
 set_global_assignment -name SYSTEMVERILOG_FILE user_logic/udp_cmd_process.sv
 set_global_assignment -name SYSTEMVERILOG_FILE user_logic/HC595PWM.sv
 set_global_assignment -name SYSTEMVERILOG_FILE top.sv

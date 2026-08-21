@@ -1,6 +1,6 @@
 `include "axis.svh"
 `include "pc_head.svh"
-
+`include "hc595.svh"
 // EP4CE10 + LAN8720A UDP 回环（RMII 版本）
 // PC 发来的 UDP 数据经 eth_axis 解析后存入 FIFO, 回环发回 PC
 module top (
@@ -13,7 +13,8 @@ module top (
 	input	logic	[1:0]				rmii_rxdata,
 	output	logic						rmii_txen,
 	output	logic	[1:0]				rmii_txdata,
-	output	logic						rmii_rst
+	output	logic						rmii_rst,
+	hc595.master						hc595_s1
 );
 
 	pll	pll_inst (
@@ -124,5 +125,11 @@ module top (
 		.udp_txbusy							( udp_txbusy		),
 		.udp_tx_head						( udp_tx_head		)
 	);
+
+	udp_cmd_process u1_udp_cmd_process(
+		.hc595_s1 (hc595_s1)
+	);
+
+
 
 endmodule
