@@ -83,11 +83,7 @@ module top (
 
 	ip_conf u_ip_conf (
 		.clk								( clk			),
-		.rstn							( rstn			),
-		// Replace these inputs with the external configuration controller.
-		.board_addr_cfg_valid				( 1'b0			),
-		.board_mac_addr_cfg					( 48'd0			),
-		.board_ip_addr_cfg					( 32'd0			),
+		.rstn						    	( rstn			),
 		.board_mac_addr						( board_mac_addr	),
 		.board_ip_addr						( board_ip_addr	)
 	);
