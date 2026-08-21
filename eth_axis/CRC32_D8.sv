@@ -23,8 +23,8 @@ module CRC32_D8(
 	input	wire							crc_start,					// first valid input data
 	input	wire							crc_en,						// all valid input data
 	input	wire							crc_end,					// last valid input data
-	output	wire	[31:0]					crc32,
-	output	wire							crc32_valid
+	output	wire	[31:0]		crc32,
+	output	wire						crc32_valid
 );
 
   // polynomial: x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x^1 + 1
