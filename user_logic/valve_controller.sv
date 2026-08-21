@@ -114,23 +114,36 @@ assign memory_read_address = work_index;
 // --------------------------------------------------------------------------
 // PCB mapping section
 // --------------------------------------------------------------------------
-// Default wiring:
-//   hc595_s1 -> valves 0..31, hc595_s2 -> valves 32..63
-//   each valve uses adjacent outputs A then B (QA/QB, QC/QD, ...).
-// If the PCB wiring changes, edit only these three mapping functions.
+// PCB输出映射集中放在这里，后续PCB走线发生变化时，只需要修改下面三个函数。
+//
+// 当前默认接线：
+//   hc595_s1控制阀门0～31，hc595_s2控制阀门32～63；
+//   每个阀门占用两个相邻输出，偶数通道接A端，奇数通道接B端。
+//
+// 例如阀门0：
+//   hc595_s1的Q0(QA)接A端，Q1(QB)接B端，即Q1Q0 = BA。
+// 例如阀门1：
+//   hc595_s1的Q2(QC)接A端，Q3(QD)接B端。
 function automatic logic map_valve_to_group(input logic [5:0] valve_number);
+    // 阀门编号为6位，最高位valve_number[5]从编号32开始变为1：
+    //   0：阀门0～31，选择hc595_s1；
+    //   1：阀门32～63，选择hc595_s2。
     map_valve_to_group = valve_number[5];
 endfunction
 
 function automatic [5:0] map_valve_to_a_channel(
     input logic [5:0] valve_number
 );
+    // 只取组内编号valve_number[4:0]，末尾拼接一个0，相当于乘以2。
+    // 因此每个阀门的A端使用偶数通道：阀门0->Q0、阀门1->Q2……
     map_valve_to_a_channel = {valve_number[4:0], 1'b0};
 endfunction
 
 function automatic [5:0] map_valve_to_b_channel(
     input logic [5:0] valve_number
 );
+    // 末尾拼接一个1，相当于“组内阀门编号乘以2再加1”。
+    // 因此每个阀门的B端使用奇数通道：阀门0->Q1、阀门1->Q3……
     map_valve_to_b_channel = {valve_number[4:0], 1'b1};
 endfunction
 
@@ -215,7 +228,7 @@ always_comb begin
     endcase
 end
 
-// Convert one logical valve write into the selected 595 group's write port.
+// 把一次“逻辑阀门写入”转换成对应595组的PWM写端口。
 always_comb begin
     pwm_write_enable = 1'b0;
     pwm_write_valve  = work_index;
@@ -260,14 +273,17 @@ always_comb begin
     pwm_s2_wr_duty = pwm_write_duty;
 
     if (pwm_write_enable) begin
+        // map_valve_to_group返回0时写hc595_s1，返回1时写hc595_s2。
         if (!map_valve_to_group(pwm_write_valve)) begin
             pwm_s1_wr_en = 1'b1;
+            // pwm_write_is_b=1表示写B端，否则写A端。
             if (pwm_write_is_b)
                 pwm_s1_wr_addr = map_valve_to_b_channel(pwm_write_valve);
             else
                 pwm_s1_wr_addr = map_valve_to_a_channel(pwm_write_valve);
         end else begin
             pwm_s2_wr_en = 1'b1;
+            // s2组内的通道编号同样从Q0开始计算。
             if (pwm_write_is_b)
                 pwm_s2_wr_addr = map_valve_to_b_channel(pwm_write_valve);
             else
