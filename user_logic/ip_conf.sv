@@ -14,7 +14,7 @@ always_ff @(posedge clk or negedge rstn) begin
         board_mac_addr <= DEFAULT_BOARD_MAC_ADDR;
         board_ip_addr  <= DEFAULT_BOARD_IP_ADDR;
     end else begin
-
+        
     end
 end
 

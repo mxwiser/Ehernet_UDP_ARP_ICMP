@@ -84,6 +84,7 @@ module top (
 	ip_conf u_ip_conf (
 		.clk								( clk			),
 		.rstn						    	( rstn			),
+		.addr								( addr			),
 		.board_mac_addr						( board_mac_addr	),
 		.board_ip_addr						( board_ip_addr	)
 	);
