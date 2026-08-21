@@ -3,12 +3,12 @@
 interface hc595;
 logic stcp;
 logic shcp;
-logic ds;
+logic ser;
 logic oen;
 modport master(
     output stcp,
     output shcp,
-    output ds,
+    output ser,
     output oen
 );
 

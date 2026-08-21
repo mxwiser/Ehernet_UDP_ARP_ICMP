@@ -9,12 +9,12 @@ module HC595PWM #(
 logic   stcp;
 logic   shcp;
 logic    oen;
-logic     ds;
+logic    ser;
 
 assign hc595_serial.stcp = stcp;
 assign hc595_serial.shcp = shcp;
 assign hc595_serial.oen  =  oen;
-assign hc595_serial.ds   =   ds;
+assign hc595_serial.ser  =  ser;
 
 
 always_ff @(posedge clk or negedge rstn)begin
