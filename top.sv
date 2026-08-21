@@ -15,6 +15,7 @@ module top (
 	output	logic	[1:0]				rmii_txdata,
 	output	logic						rmii_rst,
 	hc595.master						hc595_s1,
+	hc595.master						hc595_s2,
 	input   logic   [3:0] 				addr						
 );
 
@@ -137,7 +138,8 @@ module top (
 	udp_cmd_process u1_udp_cmd_process(
 		.clk       (clk),
 		.rstn      (rstn),
-		.hc595_s1 (hc595_s1)
+		.hc595_s1 (hc595_s1),
+		.hc595_s2 (hc595_s2)
 	);
 
 
