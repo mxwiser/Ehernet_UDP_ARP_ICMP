@@ -12,8 +12,13 @@ module udp_cmd_process(
 );
 
 HC595PWM u1_hc595(
-    .clk            (clk),
-    .rstn           (rstn),
+    .clk           (clk),
+    .rstn          (rstn),
+    // TODO: drive these three ports from the UDP command decoder.
+    .pwm_wr_en     (1'b0),
+    .pwm_wr_addr   ('0),
+    .pwm_wr_duty   ('0),
+    .init_done     (),
     .hc595_serial (hc595_s1)
 );
 
