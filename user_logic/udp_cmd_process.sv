@@ -11,7 +11,12 @@ module udp_cmd_process(
     hc595                           hc595_s1
 );
 
-HC595PWM u1_hc595(
+HC595PWM #(
+    .CHIP_NUMBERS (2),
+    .CLK_FREQ_HZ  (50_000_000),
+    .PWM_FREQ_HZ  (1_000),
+    .PWM_LEVELS   (10)
+) u1_hc595 (
     .clk           (clk),
     .rstn          (rstn),
     // TODO: drive these three ports from the UDP command decoder.
