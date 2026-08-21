@@ -63,9 +63,11 @@ module top (
 	wire								udp_txbusy;
 
     axis								m_phy_rx();
-    axis								s_phy_tx();
+	axis								s_phy_tx();
 	pc_head							udp_rx_head();
 	pc_head							udp_tx_head();
+	logic	[47:0]					board_mac_addr;
+	logic	[31:0]					board_ip_addr;
 
 	phy_rmii_axis							u_phy_rmii_axis (
 		.rstn								( rstn		),
@@ -79,14 +81,22 @@ module top (
 		.s_rmii_tx_axis_net					( s_phy_tx     		)
 	);
 
-	udp	u1_udp (
-		.sys_rst_n							( rstn		    ),
-		.sys_clk							( clk			),
-		// No runtime configuration source is present in top yet. Replace these
-		// three connections with the future CPU/EEPROM/DHCP configuration logic.
+	ip_conf u_ip_conf (
+		.clk								( clk			),
+		.rstn							( rstn			),
+		// Replace these inputs with the external configuration controller.
 		.board_addr_cfg_valid				( 1'b0			),
 		.board_mac_addr_cfg					( 48'd0			),
 		.board_ip_addr_cfg					( 32'd0			),
+		.board_mac_addr						( board_mac_addr	),
+		.board_ip_addr						( board_ip_addr	)
+	);
+
+	udp	u1_udp (
+		.sys_rst_n							( rstn		    ),
+		.sys_clk							( clk			),
+		.board_mac_addr						( board_mac_addr	),
+		.board_ip_addr						( board_ip_addr	),
 		.m_phy_rx							( m_phy_rx      ),
 		.s_phy_tx                           ( s_phy_tx      ),
 		.tx_clk								( rmii_clk		),
