@@ -14,7 +14,7 @@ module udp_cmd_process(
 );
 
 HC595PWM #(
-    .CHIP_NUMBERS (2),
+    .CHIP_NUMBERS (8),
     .CLK_FREQ_HZ  (50_000_000),
     .PWM_FREQ_HZ  (1_000),
     .PWM_LEVELS   (10)
@@ -30,7 +30,7 @@ HC595PWM #(
 );
 
 HC595PWM #(
-    .CHIP_NUMBERS (2),
+    .CHIP_NUMBERS (8),
     .CLK_FREQ_HZ  (50_000_000),
     .PWM_FREQ_HZ  (1_000),
     .PWM_LEVELS   (10)
