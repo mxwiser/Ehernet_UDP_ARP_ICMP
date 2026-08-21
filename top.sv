@@ -136,10 +136,17 @@ module top (
 	);
 
 	udp_cmd_process u1_udp_cmd_process(
-		.clk       (clk),
-		.rstn      (rstn),
-		.hc595_s1 (hc595_s1),
-		.hc595_s2 (hc595_s2)
+		.clk								( clk				),
+		.rstn								( rstn				),
+		.udp_rxstart						( udp_rxstart		),
+		.udp_rxend							( udp_rxend			),
+		.udp_rxframe_done					( udp_rxframe_done	),
+		.udp_rxdv							( udp_rxdv			),
+		.udp_rxdata							( udp_rxdata			),
+		.udp_rxamount						( udp_rxamount		),
+		.udp_rx_head						( udp_rx_head		),
+		.hc595_s1							( hc595_s1			),
+		.hc595_s2							( hc595_s2			)
 	);
 
 
