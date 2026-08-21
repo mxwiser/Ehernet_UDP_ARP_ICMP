@@ -14,7 +14,8 @@ module top (
 	output	logic						rmii_txen,
 	output	logic	[1:0]				rmii_txdata,
 	output	logic						rmii_rst,
-	hc595.master						hc595_s1
+	hc595.master						hc595_s1,
+	input   logic   [3:0] 				addr						
 );
 
 	pll	pll_inst (
