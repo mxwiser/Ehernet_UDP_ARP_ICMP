@@ -3,6 +3,7 @@ module udp_cmd_process(
     input  logic                    clk,
     input  logic                    rstn,
     input  wire                     udp_rxstart,
+    input  wire                     udp_rxend,
     input  wire						udp_rxframe_done,
 	input  wire						udp_rxdv,
 	input  wire [7:0]				udp_rxdata,
