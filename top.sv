@@ -5,7 +5,7 @@
 // PC 发来的 UDP 数据经 eth_axis 解析后存入 FIFO, 回环发回 PC
 module top (
 	output  logic                       led,
-	input	logic                       clk,
+	input	logic                       clkin,
 	output  logic                       mdc,
 	inout   wire                        mdio,
 	input	logic						rmii_clk,
@@ -19,10 +19,11 @@ module top (
 	hc595.master						hc595_led,
 	input   logic   [3:0] 				addr						
 );
-
+    wire clk;
 	pll	pll_inst (
-		.inclk0 ( clk ),
-		.c0 ( mdc )
+		.inclk0 ( clkin ),
+		.c0 ( clk ),
+		.c1 ( mdc )
 	);
 
 
