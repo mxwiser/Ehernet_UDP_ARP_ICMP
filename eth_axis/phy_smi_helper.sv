@@ -37,31 +37,21 @@ always_ff@(posedge mdclk or negedge rst)begin
             if(SMI_ack && SMI_ready)begin
                 case(SMI_status)
                     0:begin
-                        SMI_adr <= 5'd31;
-                        SMI_wdata <= 16'h7;
-                        SMI_rw <= 1'b0;
 
                         SMI_status <= 1;
                     end
                     1:begin
-                        SMI_adr <= 5'd16;
-                        // SET CRS_DV TO RXDV
-                        // SMI_wdata <= 16'h0FFE;
-
-                        // KEEP CRS_DV FOR COMPATIBILITY WITH OTHER PHYs
-                        SMI_wdata <= 16'h0FFA;
+     
 
                         SMI_status <= 2;
                     end
                     2:begin
-                        SMI_rw <= 1'b1;
+
 
                         SMI_status <= 3;
                     end
                     3:begin
-                        SMI_adr <= 5'd31;
-                        SMI_wdata <= 16'h0;
-                        SMI_rw <= 1'b0;
+     
 
                         SMI_status <= 4;
                     end
