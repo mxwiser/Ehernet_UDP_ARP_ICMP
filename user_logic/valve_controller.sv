@@ -301,7 +301,7 @@ always_ff @(posedge clk or negedge rstn) begin
         work_end               <= '0;
         apply_delay_ticks      <= '0;
         apply_duration_ticks   <= '0;
-        boost_time_setting     <= 16'd5;
+        boost_time_setting     <= 16'd15;
         hold_duty_setting      <= 4'd5;
         second_pwm_is_b        <= 1'b0;
         second_pwm_duty        <= '0;
