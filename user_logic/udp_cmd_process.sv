@@ -10,7 +10,8 @@ module udp_cmd_process(
 	input  wire [15:0]				udp_rxamount,
 	pc_head.slave					udp_rx_head,
     hc595                           hc595_s1,
-    hc595                           hc595_s2
+    hc595                           hc595_s2,
+    hc595                           hc595_led
 );
 
 wire        parser_command_valid;

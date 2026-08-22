@@ -16,6 +16,7 @@ module top (
 	output	logic						rmii_rst,
 	hc595.master						hc595_s1,
 	hc595.master						hc595_s2,
+	hc595.master						hc595_led,
 	input   logic   [3:0] 				addr						
 );
 
@@ -148,7 +149,8 @@ module top (
 		.udp_rxamount						( udp_rxamount		),
 		.udp_rx_head						( udp_rx_head		),
 		.hc595_s1							( hc595_s1			),
-		.hc595_s2							( hc595_s2			)
+		.hc595_s2							( hc595_s2			),
+		.hc595_led							( hc595_led			)
 	);
 
 
