@@ -23,6 +23,9 @@ module top_mii (
 	input   logic   					mii_txc
 
 );
+	logic phy_rdy;
+	logic phy_full_duplex;
+
 	pll	pll_inst (
 		.inclk0 ( clk ),
 		.c0     ( mdc )
@@ -34,11 +37,12 @@ module top_mii (
 		.mdclk							    ( mdc		),
 		.phyrst							    ( phy_rst	),
 		.phy_rdy							( phy_rdy	),
+		.phy_full_duplex					( phy_full_duplex ),
 		.mdio								( mdio		)
 	);
 
-	// Board LEDs are active high: both LEDs indicate PHY link readiness.
-	assign led = {2{phy_rdy}};
+	assign led[0] = phy_rdy&phy_full_duplex;          
+	
 
 	wire								udp_rxstart;
 	wire								udp_rxend;
