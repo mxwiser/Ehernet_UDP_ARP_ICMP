@@ -40,7 +40,7 @@ always_ff@(posedge mdclk or negedge rst)begin
         SMI_status <= 0;
     end else begin
         rphyrst <= 1'b1;
-        if(phy_rdy == 1'b0)begin
+        //if(phy_rdy == 1'b0)begin
             SMI_trg <= 1'b1;
             if(SMI_ack && SMI_ready)begin
                 case(SMI_status)
@@ -71,12 +71,14 @@ always_ff@(posedge mdclk or negedge rst)begin
                     2:begin
                         if(SMI_data[2])begin
                             phy_rdy <= 1'b1;
-                            SMI_trg <= 1'b0;
+                            //SMI_trg <= 1'b0;
+                        end else begin
+                            phy_rdy <= 1'b0;
                         end
                     end
                 endcase
             end
-        end
+        //end
     end
 end
 //1 = read, 0 = write
