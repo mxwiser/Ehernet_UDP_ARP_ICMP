@@ -1,0 +1,40 @@
+Info: Starting: Create block symbol file (.bsf)
+Info: qsys-generate D:\Projects\FPGA\ep4ce10\flash\flasher.qsys --block-symbol-file --output-directory=D:\Projects\FPGA\ep4ce10\flash\flasher --family="Cyclone IV E" --part=EP4CE10E22C8
+Progress: Loading flash/flasher.qsys
+Progress: Reading input file
+Progress: Adding asmi_parallel2_top_0 [altera_asmi_parallel2_top 25.1]
+Progress: Parameterizing module asmi_parallel2_top_0
+Progress: Building connections
+Progress: Parameterizing connections
+Progress: Validating
+Progress: Done reading input file
+Info: qsys-generate succeeded.
+Info: Finished: Create block symbol file (.bsf)
+Info: 
+Info: Starting: Create HDL design files for synthesis
+Info: qsys-generate D:\Projects\FPGA\ep4ce10\flash\flasher.qsys --synthesis=VERILOG --output-directory=D:\Projects\FPGA\ep4ce10\flash\flasher\synthesis --family="Cyclone IV E" --part=EP4CE10E22C8
+Progress: Loading flash/flasher.qsys
+Progress: Reading input file
+Progress: Adding asmi_parallel2_top_0 [altera_asmi_parallel2_top 25.1]
+Progress: Parameterizing module asmi_parallel2_top_0
+Progress: Building connections
+Progress: Parameterizing connections
+Progress: Validating
+Progress: Done reading input file
+Info: flasher: Generating "flasher" for QUARTUS_SYNTH
+Info: asmi_parallel2_top_0: "flasher" instantiated altera_asmi_parallel2_top "asmi_parallel2_top_0"
+Info: asmi2_core: "asmi_parallel2_top_0" instantiated altera_asmi_parallel2 "asmi2_core"
+Info: asmi2_addr_adaption: "asmi_parallel2_top_0" instantiated avl_mem_addr_adaption "asmi2_addr_adaption"
+Info: rst_controller: "asmi_parallel2_top_0" instantiated altera_reset_controller "rst_controller"
+Info: csr_controller: "asmi2_core" instantiated altera_asmi2_csr_controller "csr_controller"
+Info: avst_fifo: "Generating: avst_fifo"
+Info: xip_controller: "asmi2_core" instantiated altera_asmi2_xip_controller "xip_controller"
+Info: merlin_demultiplexer_0: "asmi2_core" instantiated altera_merlin_demultiplexer "merlin_demultiplexer_0"
+Info: multiplexer: "asmi2_core" instantiated altera_merlin_multiplexer "multiplexer"
+Info: asmi2_cmd_generator_0: "asmi2_core" instantiated altera_asmi2_cmd_generator "asmi2_cmd_generator_0"
+Info: asmi2_qspi_interface_0: "asmi2_core" instantiated altera_asmi2_qspi_interface "asmi2_qspi_interface_0"
+Info: avst_fifo: "xip_controller" instantiated altera_asmi2_xip_controller "avst_fifo"
+Info: avst_fifo: "avst_fifo" instantiated altera_avalon_sc_fifo "avst_fifo"
+Info: flasher: Done "flasher" with 13 modules, 19 files
+Info: qsys-generate succeeded.
+Info: Finished: Create HDL design files for synthesis
