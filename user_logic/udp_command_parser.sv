@@ -157,7 +157,7 @@ always_ff @(posedge clk or negedge rstn) begin
             endcase
 
             if (((function_code == 8'h01) && (byte_index >= 8)) ||
-                ((function_code == 8'h02) && (byte_index >= 7))) begin
+                ((function_code == 8'h02) && (byte_index >= 6))) begin
                 received_crc <= {received_crc[23:0], udp_rxdata};
             end
 
