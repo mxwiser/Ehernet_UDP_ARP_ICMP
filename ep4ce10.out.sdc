@@ -1,124 +1,57 @@
-# EP4CE10 + RTL8201F 100BASE-TX MII timing constraints
+# EP4CE10 + IP101GRI RMII timing constraints
 #
-# Reference: RTL8201F/RTL8201FL/RTL8201FN Datasheet, Rev. 1.4
-#   Table 51: MII Transmission Cycle Timing
-#   Table 52: MII Reception Cycle Timing
-#
-# The values below are the PHY pin timing limits. PCB trace delays default to
-# 0 ns because no routed trace-length data is available. Replace the PCB delay
-# variables below with measured min/max values when they are known.
+# Clocking in the current top-level design:
+#   clkin    : 40 MHz board oscillator -> PLL inclk0
+#   PLL c0   : 50 MHz system clock (internal net "clk")
+#   PLL c1   : 1 MHz SMI clock (internal clock and output port "mdc")
+#   rmii_clk : independent 50 MHz reference supplied by the IP101GRI
 
 set_time_format -unit ns -decimal_places 3
 
 # -----------------------------------------------------------------------------
-# Clocks
+# Base clocks
 # -----------------------------------------------------------------------------
 
+create_clock -name {clkin_40m} \
+    -period 25.000 -waveform {0.000 12.500} [get_ports {clkin}]
 
+create_clock -name {rmii_clk_50m} \
+    -period 20.000 -waveform {0.000 10.000} [get_ports {rmii_clk}]
 
-# RTL8201F MII clocks are 25 MHz at 100 Mbps. TXC and RXC are PHY outputs.
-# The datasheet specifies a nominal 40 ns period and 14..26 ns high/low time.
-# Only rising edges are used by the current RTL, so the nominal waveform is
-# sufficient for the rising-edge setup/hold checks.
-
-
-create_clock -name {clk50m} -period 20.000 -waveform { 0.000 10.000 } [get_ports {rmii_clk}]
-create_clock -name {sys_clk} -period 20.000 -waveform { 0.000 10.000 } [get_ports {clk}]
-
-#**************************************************************
-# Create Generated Clock
-#**************************************************************
-
-# pll_inst: 50 MHz sys_clk / 50 = 1 MHz MDC.
-# Let TimeQuest create the generated clock on the actual ALTPLL output so the
-# internal SMI logic clocked by MDC and the top-level MDC output are covered.
+# Create the 50 MHz c0 and 1 MHz c1 clocks from the ALTPLL parameters. The
+# clkin base clock must exist before this command or TimeQuest cannot associate
+# the generated clocks with their 40 MHz master clock.
 derive_pll_clocks
-
-# Add the device-specific setup/hold uncertainty for all base and PLL clocks.
 derive_clock_uncertainty
 
-# The board oscillator, MII TXC, and MII RXC have no specified phase
-# relationship. All transfers between these domains use asynchronous FIFOs.
-
-
-# -----------------------------------------------------------------------------
-# RTL8201F 100 Mbps MII timing limits
-# -----------------------------------------------------------------------------
-
-
-
-# PCB flight times at minimum/maximum operating conditions.
-# RXCLK/RXD travel from PHY to FPGA. TXCLK travels from PHY to FPGA, while
-# TXD/TXEN travel back from FPGA to PHY.
-
+# The PHY RMII reference and the board oscillator/PLL clocks have no fixed
+# phase relationship. Crossings between these domains are implemented with
+# asynchronous FIFOs.
+set_clock_groups -asynchronous \
+    -group [get_clocks {*pll_inst*}] \
+    -group [get_clocks {rmii_clk_50m}]
 
 # -----------------------------------------------------------------------------
-# MII receive: RTL8201F -> FPGA
+# IP101GRI RMII interface, VDDIO = 3.3 V
 # -----------------------------------------------------------------------------
+# Datasheet receive timing (PHY -> FPGA):
+#   RMII_CLK rising edge to CRS_DV/RXD output = 6 ns min, 13 ns max.
+# Datasheet transmit timing (FPGA -> PHY):
+#   TXEN/TXD setup = 4 ns min, hold = 2 ns min.
+#
+# These values assume zero relative PCB clock/data trace skew. Add the measured
+# data-minus-clock trace delay to these constraints if PCB trace data is known.
 
-# Table 52 guarantees RXD/RXDV valid for 10 ns before and 10 ns after each
-# RXCLK rising edge. Expressed as an arrival window from the preceding rising
-# edge, this is:
-#   earliest transition = RX hold                         = 10 ns
-#   latest arrival       = period - RX setup             = 30 ns
-# PCB terms account for the relative PHY-to-FPGA clock/data flight times.
+set_input_delay -clock [get_clocks {rmii_clk_50m}] \
+    -min 6.000 [get_ports {rmii_rxdv rmii_rxdata[*]}]
+set_input_delay -clock [get_clocks {rmii_clk_50m}] \
+    -max 13.000 [get_ports {rmii_rxdv rmii_rxdata[*]}]
 
+set_output_delay -clock [get_clocks {rmii_clk_50m}] \
+    -min -2.000 [get_ports {rmii_txen rmii_txdata[*]}]
+set_output_delay -clock [get_clocks {rmii_clk_50m}] \
+    -max 4.000 [get_ports {rmii_txen rmii_txdata[*]}]
 
-# -----------------------------------------------------------------------------
-# MII transmit: FPGA -> RTL8201F
-# -----------------------------------------------------------------------------
-
-# Table 51 requires TXD/TXEN setup >= 10 ns and hold >= 0 ns at the TXCLK
-# rising edge. For set_output_delay, -max is the receiver setup requirement;
-# -min is the negative receiver hold requirement. Since TXCLK first travels
-# PHY-to-FPGA and TXD/TXEN then travel FPGA-to-PHY, both PCB flight times are
-# included in the external output-delay model.
-
-
-
-
-
-#**************************************************************
-# Set Output Delay
-#**************************************************************
-
-
-
-
-
-#**************************************************************
-# Set Clock Groups
-#**************************************************************
-
-
-
-#**************************************************************
-# Set False Path
-#**************************************************************
-
-
-
-#**************************************************************
-# Set Multicycle Path
-#**************************************************************
-
-
-
-#**************************************************************
-# Set Maximum Delay
-#**************************************************************
-
-
-
-#**************************************************************
-# Set Minimum Delay
-#**************************************************************
-
-
-
-#**************************************************************
-# Set Input Transition
-#**************************************************************
-
-# rstn is intentionally asynchronous in the RTL. UART and inactive MDIO/MDC
-# paths are outside the RTL8201F MII source-synchronous interface constraints.
+# The power-on reset is created internally and is intentionally asynchronous
+# to the RMII domain. Other board-control inputs have no external timing budget
+# in the available hardware documentation and are therefore left unconstrained.
