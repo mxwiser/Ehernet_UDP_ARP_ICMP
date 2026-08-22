@@ -12,8 +12,8 @@ module top_mii (
 
 	//smi   
 	output  logic  						phy_rst,
-	output  logic                       mdc,
-	inout   logic						mdio,
+	output  wire                        mdc,
+	inout   wire						mdio,
 	//MII
 	input   logic   					mii_rxdv,
 	input   logic	[3:0]				mii_rxd,
@@ -23,7 +23,23 @@ module top_mii (
 	input   logic   					mii_txc
 
 );
-    assign  phy_rst = rstn;
+	pll	pll_inst (
+		.inclk0 ( clk ),
+		.c0     ( mdc )
+	);
+
+	phy_smi_helper u_phy_smi_helper (
+		.clk								( clk		),
+		.rst								( rstn		),
+		.mdclk							    ( mdc		),
+		.phyrst							    ( phy_rst	),
+		.phy_rdy							( phy_rdy	),
+		.mdio								( mdio		)
+	);
+
+	// Board LEDs are active high: both LEDs indicate PHY link readiness.
+	assign led = {2{phy_rdy}};
+
 	wire								udp_rxstart;
 	wire								udp_rxend;
 	wire								udp_rxframe_done;
