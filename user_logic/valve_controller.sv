@@ -190,8 +190,8 @@ always_comb begin
             end
         end
 
-        STATE_TIMER_PROCESS: begin
-            if (state_open) begin
+        STATE_TIMER_PROCESS:begin 
+            if (state_open) begin 
                 memory_write_enable = 1'b1;
                 if (state_remaining <= 1) begin
                     memory_write_data = '0;
