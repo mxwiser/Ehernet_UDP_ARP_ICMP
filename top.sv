@@ -1,7 +1,7 @@
 `include "axis.svh"
 `include "pc_head.svh"
 `include "hc595.svh"
-// EP4CE10 + LAN8720A UDP 回环（RMII 版本）
+// EP4CE10 + IP101GRI UDP 回环（RMII 版本）
 // PC 发来的 UDP 数据经 eth_axis 解析后存入 FIFO, 回环发回 PC
 module top (
 	output  logic                       led,
@@ -36,6 +36,7 @@ module top (
 	end
 
 	logic phy_ready;
+	logic phy_full_duplex;
 	logic rmii_rst_unused;
 
 	phy_smi_helper u_phy_smi_helper (
@@ -44,11 +45,12 @@ module top (
 		.mdclk   ( mdc      ),
 		.phyrst  ( rmii_rst ),
 		.phy_rdy ( phy_ready),
+		.phy_full_duplex ( phy_full_duplex ),
 		.mdio    ( mdio     )
 	);
 
-	// 板载 LED 低电平点亮：PHY 就绪后点亮。
-	assign led = ~phy_ready;
+	// 板载 LED 低电平点亮：链路就绪且为全双工时点亮。
+	assign led = ~(phy_ready & phy_full_duplex);
 
 	wire								udp_rxstart;
 	wire								udp_rxend;

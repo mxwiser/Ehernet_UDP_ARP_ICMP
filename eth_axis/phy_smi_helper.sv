@@ -4,6 +4,7 @@ module phy_smi_helper(
     input  logic mdclk,
     output logic phyrst,
     output logic phy_rdy,
+    output logic phy_full_duplex,
     inout  wire mdio
 );
 assign phyrst = rphyrst;
@@ -18,16 +19,28 @@ logic [15:0] SMI_data;
 logic [15:0] SMI_wdata;
 byte SMI_status;
 
+// IEEE 802.3 Clause 22 standard registers.
+localparam logic [4:0] PHY_REG_BMCR   = 5'd0;
+localparam logic [4:0] PHY_REG_BMSR   = 5'd1;
+localparam logic [4:0] PHY_REG_ANAR   = 5'd4;
+localparam logic [4:0] PHY_REG_ANLPAR = 5'd5;
 
+// ANAR[8] = 100BASE-TX full duplex; ANAR[4:0] = IEEE 802.3 selector.
+// No other 10/100 ability is advertised.
+localparam logic [15:0] ANAR_100M_FULL_DUPLEX_ONLY = 16'h0101;
 
+// BMCR[12] = auto-negotiation enable; BMCR[9] = restart negotiation.
+localparam logic [15:0] BMCR_ENABLE_RESTART_AN = 16'h1200;
 
 always_ff@(posedge mdclk or negedge rst)begin
     if(rst == 1'b0)begin
         phy_rdy <= 1'b0;
+        phy_full_duplex <= 1'b0;
         rphyrst <= 1'b0;
         SMI_trg <= 1'b0;
-        SMI_adr <= 5'd1;
-        SMI_rw <= 1'b1;
+        SMI_adr <= PHY_REG_ANAR;
+        SMI_wdata <= ANAR_100M_FULL_DUPLEX_ONLY;
+        SMI_rw <= 1'b0;
         SMI_status <= 0;
     end else begin
         rphyrst <= 1'b1;
@@ -36,29 +49,49 @@ always_ff@(posedge mdclk or negedge rst)begin
             if(SMI_ack && SMI_ready)begin
                 case(SMI_status)
                     0:begin
-                        SMI_adr <= 5'd1;
-                        SMI_rw <= 1'b1;
+                        // ANAR write completed. Enable and restart negotiation.
+                        SMI_adr <= PHY_REG_BMCR;
+                        SMI_wdata <= BMCR_ENABLE_RESTART_AN;
+                        SMI_rw <= 1'b0;
                         SMI_status <= 1;
                     end
                     1:begin
+                        // BMCR write completed. Poll link and negotiation status.
+                        SMI_adr <= PHY_REG_BMSR;
+                        SMI_rw <= 1'b1;
                         SMI_status <= 2;
                     end
                     2:begin
-                        SMI_status <= 3;
+                        // BMSR[5] = negotiation complete; BMSR[2] = link up.
+                        // Link status is latch-low, so continue polling it.
+                        if(SMI_data[5] && SMI_data[2])begin
+                            phy_rdy <= 1'b1;
+                            SMI_adr <= PHY_REG_ANLPAR;
+                            SMI_rw <= 1'b1;
+                            SMI_status <= 3;
+                        end else begin
+                            phy_rdy <= 1'b0;
+                            phy_full_duplex <= 1'b0;
+                            SMI_adr <= PHY_REG_BMSR;
+                            SMI_rw <= 1'b1;
+                        end
                     end
                     3:begin
-                        SMI_status <= 4;
+                        // ANLPAR[8] confirms the link partner advertised
+                        // 100BASE-TX full duplex. The local ANAR advertises
+                        // only this mode, so it is the negotiated mode.
+                        phy_full_duplex <= SMI_data[8];
+                        SMI_adr <= PHY_REG_BMSR;
+                        SMI_rw <= 1'b1;
+                        SMI_status <= 2;
                     end
-                    4:begin
-                        SMI_status <= 5;
-                    end
-                    5:begin
-                        if(SMI_data[2])begin
-                            phy_rdy <= 1'b1;
-                            //SMI_trg <= 1'b0;
-                        end else begin
-                            phy_rdy <= 1'b0;    
-                        end
+                    default:begin
+                        phy_rdy <= 1'b0;
+                        phy_full_duplex <= 1'b0;
+                        SMI_adr <= PHY_REG_ANAR;
+                        SMI_wdata <= ANAR_100M_FULL_DUPLEX_ONLY;
+                        SMI_rw <= 1'b0;
+                        SMI_status <= 0;
                     end
                 endcase
             end
