@@ -19,7 +19,16 @@ module top (
 	hc595.master						hc595_led,
 	input   logic   [3:0] 				addr						
 );
-    wire clk;
+	// Single RTL source of truth for the PLL c0 system-clock frequency.
+	// When PLL c0 is changed, update this value to match it.
+	localparam integer SYS_CLK_FREQ_HZ = 50_000_000;
+	localparam integer POWER_ON_RESET_MS = 11;
+	localparam integer POWER_ON_RESET_CYCLES =
+		(SYS_CLK_FREQ_HZ / 1_000) * POWER_ON_RESET_MS;
+	localparam integer POWER_ON_RESET_COUNT_WIDTH =
+		$clog2(POWER_ON_RESET_CYCLES + 1);
+
+	wire clk;
 	pll	pll_inst (
 		.inclk0 ( clkin ),
 		.c0 ( clk ),
@@ -28,9 +37,12 @@ module top (
 
 
 
-	// L144 板没有外部复位引脚。50 MHz 下保持约 10.5 ms 的上电复位。
-	logic [18:0] power_on_reset_count = '0;
-	wire rstn = &power_on_reset_count;
+	// L144 has no external reset input. Hold power-on reset for 11 ms;
+	// the counter length follows SYS_CLK_FREQ_HZ automatically.
+	logic [POWER_ON_RESET_COUNT_WIDTH-1:0] power_on_reset_count = '0;
+	wire rstn =
+		(power_on_reset_count ==
+		 POWER_ON_RESET_COUNT_WIDTH'(POWER_ON_RESET_CYCLES - 1));
 
 	always_ff @(posedge clk) begin
 		if (!rstn)
@@ -139,7 +151,9 @@ module top (
 		.udp_tx_head						( udp_tx_head		)
 	);
 
-	udp_cmd_process u1_udp_cmd_process(
+	udp_cmd_process #(
+		.SYS_CLK_FREQ_HZ					( SYS_CLK_FREQ_HZ )
+	) u1_udp_cmd_process(
 		.clk								( clk				),
 		.rstn								( rstn				),
 		.udp_rxstart						( udp_rxstart		),

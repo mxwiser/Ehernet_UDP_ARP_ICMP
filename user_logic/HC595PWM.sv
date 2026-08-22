@@ -101,7 +101,7 @@ always_ff @(posedge clk or negedge rstn) begin
                 duty_table[pwm_wr_addr] <= pwm_wr_duty;
         end
 
-        // STCP is normally low and is asserted for one 50 MHz clock period.
+        // STCP is normally low and is asserted for one system-clock period.
         stcp <= 1'b0;
 
         if (step_count == STEP_CYCLES - 1) begin

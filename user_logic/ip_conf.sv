@@ -14,9 +14,9 @@ logic [3:0] addr_sync_2;
 logic [1:0] sync_count;
 logic       config_latched;
 
-// addr comes from asynchronous DIP switches. The top-level power-on reset is
-// released after about 10.49 ms; synchronize and then latch the switch value
-// once so that MAC/IP remain stable while the network stack is running.
+// addr comes from asynchronous DIP switches. After the top-level power-on
+// reset is released, synchronize and latch the switch value once so that
+// MAC/IP remain stable while the network stack is running.
 always_ff @(posedge clk or negedge rstn) begin
     if (!rstn) begin
         addr_sync_1    <= '0;

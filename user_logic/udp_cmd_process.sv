@@ -1,5 +1,7 @@
 `include "hc595.svh"
-module udp_cmd_process(
+module udp_cmd_process #(
+    parameter integer SYS_CLK_FREQ_HZ = 50_000_000
+)(
     input  logic                    clk,
     input  logic                    rstn,
     input  wire                     udp_rxstart,
@@ -62,7 +64,7 @@ command_fifo #(
 assign command_fifo_read = !command_fifo_empty && controller_command_ready;
 
 valve_controller #(
-    .CLK_FREQ_HZ (50_000_000),
+    .CLK_FREQ_HZ (SYS_CLK_FREQ_HZ),
     .TIMER_HZ    (10_000),
     .VALVE_COUNT (64),
     .PWM_LEVELS  (10)
@@ -82,7 +84,7 @@ valve_controller #(
 
 HC595PWM #(
     .CHIP_NUMBERS (8),
-    .CLK_FREQ_HZ  (50_000_000),
+    .CLK_FREQ_HZ  (SYS_CLK_FREQ_HZ),
     .PWM_FREQ_HZ  (1_000),
     .PWM_LEVELS   (10)
 ) u1_hc595 (
@@ -97,7 +99,7 @@ HC595PWM #(
 
 HC595PWM #(
     .CHIP_NUMBERS (8),
-    .CLK_FREQ_HZ  (50_000_000),
+    .CLK_FREQ_HZ  (SYS_CLK_FREQ_HZ),
     .PWM_FREQ_HZ  (1_000),
     .PWM_LEVELS   (10)
 ) u2_hc595 (
@@ -112,7 +114,7 @@ HC595PWM #(
 
 HC595LED #(
     .CHIP_NUMBERS (8),
-    .CLK_FREQ_HZ  (50_000_000),
+    .CLK_FREQ_HZ  (SYS_CLK_FREQ_HZ),
     .LED_STEP_MS  (100),
     .SHIFT_CLK_HZ (1_000_000),
     .LED_ACTIVE_LOW (1'b0)
