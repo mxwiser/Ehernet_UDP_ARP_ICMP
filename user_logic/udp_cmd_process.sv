@@ -109,4 +109,16 @@ HC595PWM #(
     .init_done     (),
     .hc595_serial (hc595_s2)
 );
+
+HC595LED #(
+    .CHIP_NUMBERS (8),
+    .CLK_FREQ_HZ  (50_000_000),
+    .LED_STEP_MS  (100),
+    .SHIFT_CLK_HZ (1_000_000),
+    .LED_ACTIVE_LOW (1'b0)
+) u_hc595_led (
+    .clk       (clk),
+    .rstn      (rstn),
+    .hc595_led (hc595_led)
+);
 endmodule
